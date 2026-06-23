@@ -1,0 +1,281 @@
+openapi: 3.1.0
+info:
+  title: Terminal302 API
+  version: 0.1.0
+  description: API REST inicial para autenticacion de Terminal302.
+servers:
+  - url: http://localhost:8302/api
+    description: Docker local
+  - url: /api
+    description: Mismo host
+tags:
+  - name: Autenticacion
+    description: Login, sesion y cambio obligatorio de contrasena inicial.
+paths:
+  /login:
+    post:
+      tags:
+        - Autenticacion
+      summary: Iniciar sesion
+      description: Valida credenciales, rechaza usuarios inactivos y devuelve un token Bearer de Sanctum.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              admin:
+                summary: Administrador inicial
+                value:
+                  email: admin@terminal302.local
+                  password: TEMPORAL
+      responses:
+        '200':
+          description: Login exitoso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '403':
+          description: Usuario inactivo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion o credenciales invalidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /logout:
+    post:
+      tags:
+        - Autenticacion
+      summary: Cerrar sesion
+      description: Invalida el token Bearer actual.
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sesion cerrada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /user:
+    get:
+      tags:
+        - Autenticacion
+      summary: Obtener usuario autenticado
+      description: Devuelve el usuario asociado al token Bearer actual.
+      operationId: authenticatedUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Usuario autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResourceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /change-initial-password:
+    post:
+      tags:
+        - Autenticacion
+      summary: Cambiar contrasena inicial obligatoria
+      description: Requiere la contrasena actual y una nueva contrasena confirmada. Marca must_change_password como false.
+      operationId: changeInitialPassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeInitialPasswordRequest'
+            examples:
+              cambioInicial:
+                value:
+                  current_password: TEMPORAL
+                  password: NuevaClave123
+                  password_confirmation: NuevaClave123
+      responses:
+        '200':
+          description: Contrasena actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeInitialPasswordResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          description: Error de validacion o contrasena actual invalida.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+  responses:
+    Unauthenticated:
+      description: Token ausente, invalido o expirado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageResponse'
+          example:
+            message: Unauthenticated.
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@terminal302.local
+        password:
+          type: string
+          format: password
+          example: TEMPORAL
+    ChangeInitialPasswordRequest:
+      type: object
+      required:
+        - current_password
+        - password
+        - password_confirmation
+      properties:
+        current_password:
+          type: string
+          format: password
+          example: TEMPORAL
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Debe contener letras y numeros.
+          example: NuevaClave123
+        password_confirmation:
+          type: string
+          format: password
+          example: NuevaClave123
+    AuthResponse:
+      type: object
+      required:
+        - token_type
+        - access_token
+        - user
+      properties:
+        token_type:
+          type: string
+          example: Bearer
+        access_token:
+          type: string
+          example: 1|token-generado-por-sanctum
+        user:
+          $ref: '#/components/schemas/User'
+    ChangeInitialPasswordResponse:
+      type: object
+      required:
+        - message
+        - user
+      properties:
+        message:
+          type: string
+          example: Contrasena actualizada correctamente.
+        user:
+          $ref: '#/components/schemas/User'
+    UserResourceResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - role
+        - estado
+        - must_change_password
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Administrador Terminal302
+        email:
+          type: string
+          format: email
+          example: admin@terminal302.local
+        role:
+          $ref: '#/components/schemas/CatalogItem'
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        must_change_password:
+          type: boolean
+          example: true
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-23T19:00:00.000000Z'
+    CatalogItem:
+      type: object
+      properties:
+        id:
+          type:
+            - integer
+            - 'null'
+          example: 1
+        nombre:
+          type:
+            - string
+            - 'null'
+          example: administrador
+    MessageResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: Sesion cerrada correctamente.
+    ValidationErrorResponse:
+      type: object
+      required:
+        - message
+        - errors
+      properties:
+        message:
+          type: string
+          example: Las credenciales no son validas.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email:
+              - Las credenciales no son validas.

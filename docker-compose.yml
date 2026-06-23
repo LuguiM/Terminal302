@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-terminal302}
+      POSTGRES_USER: ${POSTGRES_USER:-terminal302}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_locally}
+    ports:
+      - "${POSTGRES_PORT:-15432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-terminal302} -d ${POSTGRES_DB:-terminal302}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-terminal302}
+      DB_USERNAME: ${POSTGRES_USER:-terminal302}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-change_me_locally}
+    ports:
+      - "${BACKEND_PORT:-8302}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    volumes:
+      - ./frontend:/app
+    environment:
+      VITE_API_BASE_URL: http://localhost:${BACKEND_PORT:-8302}/api
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    profiles:
+      - frontend
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
