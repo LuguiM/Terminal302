@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('operadores', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->unique()->constrained('users')->restrictOnDelete();
+            $table->foreignId('tipo_operador_id')->constrained('tipo_operadores')->restrictOnDelete();
+            $table->string('nombre');
+            $table->string('razon_social')->nullable();
+            $table->string('representante_legal')->nullable();
+            $table->string('documento')->nullable();
+            $table->string('telefono');
+            $table->string('correo');
+            $table->string('direccion');
+            $table->foreignId('estado_id')->constrained('estados')->restrictOnDelete();
+            $table->text('motivo_desactivacion')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('operadores');
+    }
+};

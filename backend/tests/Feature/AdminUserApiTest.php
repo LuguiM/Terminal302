@@ -133,7 +133,7 @@ class AdminUserApiTest extends TestCase
 
         $this->getJson('/api/admin/users')
             ->assertForbidden()
-            ->assertJsonPath('message', 'No tiene permisos para gestionar usuarios.');
+            ->assertJsonPath('message', 'No tiene permisos para acceder a este recurso.');
     }
 
     public function test_admin_user_update_validates_unique_email_ignoring_current_user(): void

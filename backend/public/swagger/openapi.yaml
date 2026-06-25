@@ -13,6 +13,8 @@ tags:
     description: Login, sesion y cambio obligatorio de contrasena inicial.
   - name: Administracion de usuarios
     description: Gestion de usuarios disponible solo para administradores.
+  - name: Operadores
+    description: Registro y administracion de operadores de transporte.
 paths:
   /login:
     post:
@@ -125,6 +127,222 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
+  /operador/me:
+    get:
+      tags:
+        - Operadores
+      summary: Obtener operador propio
+      description: Devuelve el operador asociado al empresario autenticado. Si el operador esta desactivado, responde 403.
+      operationId: operadorMe
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Operador del empresario autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorResourceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /operador:
+    post:
+      tags:
+        - Operadores
+      summary: Registrar operador propio
+      description: Crea el operador del empresario autenticado y lo deja activo automaticamente.
+      operationId: operadorCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperadorRequest'
+            examples:
+              empresa:
+                value:
+                  tipo_operador_id: 1
+                  nombre: Transportes Central
+                  razon_social: Transportes Central S.A.
+                  representante_legal: Maria Lopez
+                  documento: null
+                  telefono: 2222-3333
+                  correo: contacto@central.test
+                  direccion: Terminal central
+              persona:
+                value:
+                  tipo_operador_id: 2
+                  nombre: Juan Perez
+                  documento: null
+                  telefono: 7777-8888
+                  correo: juan@example.test
+                  direccion: San Salvador
+      responses:
+        '201':
+          description: Operador registrado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: El empresario ya tiene operador registrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /operador/{id}:
+    put:
+      tags:
+        - Operadores
+      summary: Actualizar operador propio
+      description: Actualiza el operador si pertenece al empresario autenticado.
+      operationId: operadorUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OperadorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperadorRequest'
+      responses:
+        '200':
+          description: Operador actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /admin/operadores:
+    get:
+      tags:
+        - Operadores
+      summary: Listar operadores
+      description: Devuelve operadores paginados con empresario, tipo y estado. Solo administradores.
+      operationId: adminListOperadores
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+      responses:
+        '200':
+          description: Lista paginada de operadores.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/operadores/{id}:
+    get:
+      tags:
+        - Operadores
+      summary: Ver operador
+      operationId: adminShowOperador
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OperadorId'
+      responses:
+        '200':
+          description: Detalle de operador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorResourceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/operadores/{id}/toggle-status:
+    patch:
+      tags:
+        - Operadores
+      summary: Alternar estado de operador
+      description: Si el operador esta activo exige motivo de desactivacion; si esta inactivo lo reactiva y limpia el motivo.
+      operationId: adminToggleOperadorStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OperadorId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToggleOperadorStatusRequest'
+            example:
+              motivo_desactivacion: Documentacion vencida
+      responses:
+        '200':
+          description: Estado del operador actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Falta motivo de desactivacion o hay error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
   /admin/users:
     get:
       tags:
@@ -310,6 +528,13 @@ components:
       schema:
         type: integer
       example: 1
+    OperadorId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
   securitySchemes:
     bearerAuth:
       type: http
@@ -474,6 +699,191 @@ components:
           example: Usuario actualizado correctamente.
         user:
           $ref: '#/components/schemas/User'
+    OperadorRequest:
+      type: object
+      required:
+        - tipo_operador_id
+        - nombre
+        - telefono
+        - correo
+        - direccion
+      properties:
+        tipo_operador_id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          maxLength: 255
+          example: Transportes Central
+        razon_social:
+          type:
+            - string
+            - 'null'
+          maxLength: 255
+          description: Requerido cuando el tipo de operador es empresa.
+          example: Transportes Central S.A.
+        representante_legal:
+          type:
+            - string
+            - 'null'
+          maxLength: 255
+          description: Requerido cuando el tipo de operador es empresa.
+          example: Maria Lopez
+        documento:
+          type:
+            - string
+            - 'null'
+          maxLength: 255
+          example: null
+        telefono:
+          type: string
+          maxLength: 50
+          example: 2222-3333
+        correo:
+          type: string
+          format: email
+          maxLength: 255
+          example: contacto@central.test
+        direccion:
+          type: string
+          maxLength: 255
+          example: Terminal central
+    ToggleOperadorStatusRequest:
+      type: object
+      properties:
+        motivo_desactivacion:
+          type:
+            - string
+            - 'null'
+          maxLength: 1000
+          description: Obligatorio al desactivar un operador activo; se ignora al reactivar.
+          example: Documentacion vencida
+    OperadorMutationResponse:
+      type: object
+      required:
+        - message
+        - operador
+      properties:
+        message:
+          type: string
+          example: Operador actualizado correctamente.
+        operador:
+          $ref: '#/components/schemas/Operador'
+    OperadorResourceResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Operador'
+    OperadorPaginatedResponse:
+      type: object
+      required:
+        - operadores
+        - pagination
+      properties:
+        operadores:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operador'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    Operador:
+      type: object
+      required:
+        - id
+        - tipo_operador
+        - nombre
+        - telefono
+        - correo
+        - direccion
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        user:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: integer
+              example: 2
+            name:
+              type: string
+              example: Empresario Terminal302
+            email:
+              type: string
+              format: email
+              example: empresario@example.test
+        tipo_operador:
+          $ref: '#/components/schemas/CatalogItem'
+        nombre:
+          type: string
+          example: Transportes Central
+        razon_social:
+          type:
+            - string
+            - 'null'
+          example: Transportes Central S.A.
+        representante_legal:
+          type:
+            - string
+            - 'null'
+          example: Maria Lopez
+        documento:
+          type:
+            - string
+            - 'null'
+          example: null
+        telefono:
+          type: string
+          example: 2222-3333
+        correo:
+          type: string
+          format: email
+          example: contacto@central.test
+        direccion:
+          type: string
+          example: Terminal central
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        motivo_desactivacion:
+          type:
+            - string
+            - 'null'
+          example: Documentacion vencida
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
     User:
       type: object
       required:

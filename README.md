@@ -185,6 +185,45 @@ El estado de un usuario se cambia solo con `PATCH /admin/users/{id}/toggle-statu
 
 Para restablecer una contrasena, usa `PATCH /admin/users/{id}/reset-password`, sin body. El sistema genera una nueva contrasena temporal, la guarda encriptada, marca `must_change_password=true` y envia el correo de restablecimiento. La contrasena temporal no se devuelve en JSON.
 
+## Operadores de transporte
+
+Rutas para empresarios, protegidas con Bearer token, rol `empresario` y contrasena inicial ya cambiada:
+
+- `GET /operador/me`
+- `POST /operador`
+- `PUT /operador/{id}`
+
+El empresario puede registrar un solo operador. Al crear el operador no se envia `estado_id`, `user_id` ni `motivo_desactivacion`; el sistema lo asocia automaticamente al usuario autenticado y lo deja activo.
+
+Campos base para crear o editar operador:
+
+- `tipo_operador_id`
+- `nombre`
+- `documento` opcional
+- `telefono`
+- `correo`
+- `direccion`
+
+Si el tipo de operador es `empresa`, tambien son obligatorios `razon_social` y `representante_legal`. Si el tipo es `persona`, esos campos pueden ir como `null` o no enviarse.
+
+Rutas para administradores:
+
+- `GET /admin/operadores`
+- `GET /admin/operadores/{id}`
+- `PATCH /admin/operadores/{id}/toggle-status`
+
+Para desactivar un operador activo, el administrador debe enviar un motivo:
+
+```json
+{
+  "motivo_desactivacion": "Documentacion vencida"
+}
+```
+
+Al reactivar un operador desactivado, el mismo endpoint se ejecuta sin body y el sistema limpia `motivo_desactivacion`.
+
+Un operador desactivado no desactiva el usuario empresario. El empresario puede iniciar sesion, pero sus endpoints de operador y futuras acciones operativas responden `403` hasta que el operador vuelva a estar activo.
+
 Ejemplo de login:
 
 ```bash

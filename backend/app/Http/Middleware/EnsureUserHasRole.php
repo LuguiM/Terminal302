@@ -7,18 +7,21 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class EnsureUserIsAdmin
+class EnsureUserHasRole
 {
     /**
      * @param  Closure(Request): Response  $next
      */
-    public function handle(Request $request, Closure $next): Response|JsonResponse
+    public function handle(Request $request, Closure $next, string ...$roles): Response|JsonResponse
     {
         $roleName = mb_strtolower((string) $request->user()?->role?->nombre);
+        $allowedRoles = collect($roles)
+            ->map(fn (string $role): string => mb_strtolower($role))
+            ->all();
 
-        if ($roleName !== 'administrador') {
+        if (! in_array($roleName, $allowedRoles, true)) {
             return response()->json([
-                'message' => 'No tiene permisos para gestionar usuarios.',
+                'message' => 'No tiene permisos para acceder a este recurso.',
             ], 403);
         }
 

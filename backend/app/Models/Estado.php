@@ -37,4 +37,9 @@ class Estado extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    public function operadores(): HasMany
+    {
+        return $this->hasMany(Operador::class);
+    }
 }
