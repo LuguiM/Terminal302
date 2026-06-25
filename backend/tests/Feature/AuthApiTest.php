@@ -16,7 +16,7 @@ class AuthApiTest extends TestCase
     public function test_user_can_login_read_profile_change_initial_password_and_logout(): void
     {
         $role = Role::query()->create(['nombre' => 'administrador']);
-        $estado = Estado::query()->create(['nombre' => 'activo']);
+        $estado = Estado::query()->create(['id' => Estado::ACTIVO_ID, 'nombre' => 'activo']);
 
         $user = User::query()->create([
             'role_id' => $role->id,
@@ -65,7 +65,7 @@ class AuthApiTest extends TestCase
     public function test_inactive_user_cannot_login(): void
     {
         $role = Role::query()->create(['nombre' => 'vendedor']);
-        $estado = Estado::query()->create(['nombre' => 'inactivo']);
+        $estado = Estado::query()->create(['id' => Estado::DESACTIVADO_ID, 'nombre' => 'inactivo']);
 
         User::query()->create([
             'role_id' => $role->id,

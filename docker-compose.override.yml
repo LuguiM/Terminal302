@@ -1,0 +1,8 @@
+services:
+  backend:
+    volumes:
+      - ./backend:/var/www/html
+      - backend_vendor:/var/www/html/vendor
+
+volumes:
+  backend_vendor:

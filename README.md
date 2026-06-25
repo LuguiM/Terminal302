@@ -33,7 +33,21 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-2. Ajustar credenciales locales en `.env` y `backend/.env`. Para Docker, `backend/.env` debe usar `DB_HOST=postgres`. El puerto publicado de PostgreSQL es `15432` por defecto para evitar choques con instalaciones locales.
+2. Ajustar credenciales locales en `.env` y `backend/.env`. Para Docker, `backend/.env` debe usar `DB_HOST=postgres` y `DB_PORT=5432`. El puerto publicado de PostgreSQL hacia tu maquina es `15432` por defecto para evitar choques con instalaciones locales.
+
+   Dentro de Docker:
+
+   ```env
+   DB_HOST=postgres
+   DB_PORT=5432
+   ```
+
+   Desde herramientas en tu maquina, como DBeaver, TablePlus o psql local:
+
+   ```text
+   Host: localhost
+   Port: 15432
+   ```
 
 3. Generar la llave de Laravel:
 
@@ -72,6 +86,69 @@ Swagger UI: `http://localhost:8302/docs/api`
 
 OpenAPI YAML: `http://localhost:8302/docs/api/openapi.yaml`
 
+## Flujo Docker para desarrollo
+
+El repositorio incluye `docker-compose.override.yml`. Docker Compose lo carga automaticamente en desarrollo local y monta `./backend` dentro del contenedor. Esto permite que los cambios en controllers, routes, requests, resources, vistas Blade, Swagger y otros archivos PHP se reflejen sin reconstruir la imagen.
+
+El volumen `backend_vendor` mantiene las dependencias Composer dentro del contenedor para que el montaje local de `./backend` no borre `vendor`.
+
+### Comandos frecuentes
+
+Levantar backend y PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+Levantar tambien el frontend:
+
+```bash
+docker compose --profile frontend up -d
+```
+
+Ver logs del backend:
+
+```bash
+docker compose logs -f backend
+```
+
+Reiniciar el backend despues de cambios en `backend/.env`:
+
+```bash
+docker compose restart backend
+```
+
+Recrear el backend si el cambio de `.env` no se refleja:
+
+```bash
+docker compose up -d --force-recreate backend
+```
+
+Reconstruir cuando cambie `Dockerfile`, extensiones PHP, dependencias del sistema o instalacion de Composer:
+
+```bash
+docker compose up -d --build backend
+```
+
+Instalar dependencias Composer dentro del volumen `backend_vendor` si queda vacio o si aparece un error de `vendor` faltante:
+
+```bash
+docker compose exec backend composer install
+```
+
+Ejecutar Artisan dentro del backend:
+
+```bash
+docker compose exec backend php artisan migrate:fresh --seed
+docker compose exec backend php artisan test
+```
+
+Ejecutar sin el override de desarrollo, usando solo la imagen autocontenida parecida a produccion:
+
+```bash
+docker compose -f docker-compose.yml up -d --build
+```
+
 ## Migraciones y seeders
 
 Con los contenedores arriba:
@@ -91,12 +168,55 @@ Base URL: `http://localhost:8302/api`
 - `GET /user` con Bearer token
 - `POST /change-initial-password` con Bearer token
 
+## Gestion de usuarios administradores
+
+Rutas protegidas con Bearer token, rol `administrador` y contrasena inicial ya cambiada:
+
+- `GET /admin/users`
+- `POST /admin/users` con `name`, `email`, `role_id`
+- `GET /admin/users/{id}`
+- `PUT /admin/users/{id}` con `name`, `email`, `role_id`
+- `PATCH /admin/users/{id}/reset-password`
+- `PATCH /admin/users/{id}/toggle-status`
+
+Crear usuario no recibe contrasena ni `estado_id`. El sistema asigna automaticamente el estado activo, genera una contrasena temporal, la guarda encriptada, marca `must_change_password=true` y envia un correo con las credenciales iniciales.
+
+El estado de un usuario se cambia solo con `PATCH /admin/users/{id}/toggle-status`, sin body. Si el usuario esta activo pasa a inactivo/desactivado; si esta inactivo/desactivado vuelve a activo. Un administrador no puede desactivarse a si mismo mediante este endpoint.
+
+Para restablecer una contrasena, usa `PATCH /admin/users/{id}/reset-password`, sin body. El sistema genera una nueva contrasena temporal, la guarda encriptada, marca `must_change_password=true` y envia el correo de restablecimiento. La contrasena temporal no se devuelve en JSON.
+
 Ejemplo de login:
 
 ```bash
 curl -X POST http://localhost:8302/api/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@terminal302.local","password":"TEMPORAL"}'
+```
+
+## Correos en local
+
+Por defecto el proyecto usa `MAIL_MAILER=log`. Para probar envio SMTP con Mailpit instalado localmente:
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=host.docker.internal
+MAIL_PORT=1025
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_FROM_ADDRESS=no-reply@terminal302.local
+MAIL_FROM_NAME=Terminal302
+```
+
+Si ejecutas Laravel fuera de Docker, usa `MAIL_HOST=127.0.0.1`. La interfaz web de Mailpit normalmente queda en `http://localhost:8025`.
+
+Para Mailtrap, configura en `backend/.env` los valores SMTP que entrega Mailtrap:
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=sandbox.smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=TU_USUARIO_MAILTRAP
+MAIL_PASSWORD=TU_PASSWORD_MAILTRAP
 ```
 
 ## Alcance actual

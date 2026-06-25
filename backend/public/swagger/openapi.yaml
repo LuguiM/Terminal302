@@ -11,6 +11,8 @@ servers:
 tags:
   - name: Autenticacion
     description: Login, sesion y cambio obligatorio de contrasena inicial.
+  - name: Administracion de usuarios
+    description: Gestion de usuarios disponible solo para administradores.
 paths:
   /login:
     post:
@@ -123,7 +125,191 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
+  /admin/users:
+    get:
+      tags:
+        - Administracion de usuarios
+      summary: Listar usuarios
+      description: Devuelve usuarios paginados con rol y estado.
+      operationId: adminListUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+      responses:
+        '200':
+          description: Lista paginada de usuarios.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Administracion de usuarios
+      summary: Crear usuario
+      description: Crea un usuario, genera una contrasena temporal y envia sus credenciales por correo.
+      operationId: adminCreateUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserRequest'
+            examples:
+              vendedor:
+                value:
+                  name: Maria Perez
+                  email: maria@example.test
+                  role_id: 3
+      responses:
+        '201':
+          description: Usuario creado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /admin/users/{id}:
+    get:
+      tags:
+        - Administracion de usuarios
+      summary: Ver usuario
+      operationId: adminShowUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Detalle de usuario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResourceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Administracion de usuarios
+      summary: Actualizar usuario
+      operationId: adminUpdateUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserRequest'
+      responses:
+        '200':
+          description: Usuario actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /admin/users/{id}/reset-password:
+    patch:
+      tags:
+        - Administracion de usuarios
+      summary: Restablecer contrasena temporal
+      description: Genera una nueva contrasena temporal, marca cambio obligatorio y envia el correo al usuario.
+      operationId: adminResetUserPassword
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Contrasena restablecida correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/toggle-status:
+    patch:
+      tags:
+        - Administracion de usuarios
+      summary: Alternar estado de usuario
+      description: Cambia automaticamente entre estado activo e inactivo/desactivado sin eliminar al usuario.
+      operationId: adminToggleUserStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Estado alternado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
 components:
+  parameters:
+    UserId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
   securitySchemes:
     bearerAuth:
       type: http
@@ -138,6 +324,27 @@ components:
             $ref: '#/components/schemas/MessageResponse'
           example:
             message: Unauthenticated.
+    Forbidden:
+      description: El usuario no tiene permisos o debe cambiar su contrasena inicial.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageResponse'
+          examples:
+            noAdmin:
+              value:
+                message: No tiene permisos para gestionar usuarios.
+            mustChangePassword:
+              value:
+                message: Debe cambiar la contrasena inicial antes de continuar.
+    NotFound:
+      description: Recurso no encontrado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageResponse'
+          example:
+            message: Not Found
   schemas:
     LoginRequest:
       type: object
@@ -207,6 +414,66 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/User'
+    UserPaginatedResponse:
+      type: object
+      required:
+        - users
+        - pagination
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    AdminUserRequest:
+      type: object
+      required:
+        - name
+        - email
+        - role_id
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: Maria Perez
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: maria@example.test
+        role_id:
+          type: integer
+          example: 3
+    AdminUserMutationResponse:
+      type: object
+      required:
+        - message
+        - user
+      properties:
+        message:
+          type: string
+          example: Usuario actualizado correctamente.
+        user:
+          $ref: '#/components/schemas/User'
     User:
       type: object
       required:
@@ -235,6 +502,12 @@ components:
           type: boolean
           example: true
         created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-23T19:00:00.000000Z'
+        updated_at:
           type:
             - string
             - 'null'

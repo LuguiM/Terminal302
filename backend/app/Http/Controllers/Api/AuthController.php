@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ChangeInitialPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Estado;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,7 +28,7 @@ class AuthController extends Controller
             ]);
         }
 
-        if ($user->estado?->nombre !== 'activo') {
+        if ((int) $user->estado_id !== Estado::ACTIVO_ID) {
             return response()->json([
                 'message' => 'El usuario no esta activo.',
             ], 403);
