@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AdminOperadorController;
 use App\Http\Controllers\Api\AdminRutaController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OperadorController;
+use App\Http\Controllers\Api\OperadorRutaController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -15,10 +16,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/change-initial-password', [AuthController::class, 'changeInitialPassword']);
 
     Route::middleware(['password.changed', 'role:empresario', 'operator.active'])
+        ->prefix('operador')
         ->group(function (): void {
-            Route::get('/operador/me', [OperadorController::class, 'me']);
-            Route::post('/operador', [OperadorController::class, 'store']);
-            Route::put('/operador/{operador}', [OperadorController::class, 'update']);
+            Route::get('/me', [OperadorController::class, 'me']);
+            Route::post('/', [OperadorController::class, 'store']);
+            Route::put('/{operador}', [OperadorController::class, 'update']);
+
+            Route::get('/rutas', [OperadorRutaController::class, 'index']);
+            Route::post('/rutas', [OperadorRutaController::class, 'store']);
+            Route::patch('/rutas/{operadorRuta}/toggle-status', [OperadorRutaController::class, 'toggleStatus']);
+            Route::delete('/rutas/{operadorRuta}', [OperadorRutaController::class, 'destroy']);
         });
 
     Route::middleware(['password.changed', 'role:administrador'])

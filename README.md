@@ -244,6 +244,31 @@ Al crear una ruta no se envia `estado_id`; el sistema asigna automaticamente el 
 
 Para este catalogo, `DELETE /admin/rutas/{id}` elimina fisicamente la ruta de la base de datos. No existe endpoint `GET /admin/rutas/{id}`.
 
+## Rutas del operador
+
+Rutas para empresarios, protegidas con Bearer token, rol `empresario`, contrasena inicial ya cambiada y operador activo:
+
+- `GET /operador/rutas`
+- `POST /operador/rutas`
+- `PATCH /operador/rutas/{id}/toggle-status`
+- `DELETE /operador/rutas/{id}`
+
+El empresario solo gestiona las rutas de su propio operador. Para asignar una ruta se envia:
+
+```json
+{
+  "ruta_id": 1
+}
+```
+
+El sistema obtiene automaticamente el operador desde el usuario autenticado y asigna estado activo. No se debe enviar `operador_id` ni `estado_id`.
+
+Solo se pueden asignar rutas activas del catalogo general. No se permite duplicar la misma combinacion operador + ruta.
+
+`GET /operador/rutas` devuelve asignaciones activas e inactivas para gestionarlas. Los listados operativos futuros deberan filtrar solo asignaciones activas.
+
+Si el empresario se equivoca, debe eliminar la asignacion con `DELETE /operador/rutas/{id}` y crear una nueva. No existe endpoint de detalle ni endpoint de edicion para esta asignacion.
+
 Ejemplo de login:
 
 ```bash

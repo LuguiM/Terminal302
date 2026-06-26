@@ -15,6 +15,8 @@ tags:
     description: Gestion de usuarios disponible solo para administradores.
   - name: Operadores
     description: Registro y administracion de operadores de transporte.
+  - name: Rutas del operador
+    description: Gestion de rutas asignadas al operador del empresario autenticado.
   - name: Rutas
     description: Catalogo administrativo de rutas de transporte.
 paths:
@@ -250,6 +252,137 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
+  /operador/rutas:
+    get:
+      tags:
+        - Rutas del operador
+      summary: Listar rutas asignadas al operador
+      description: Devuelve asignaciones paginadas del operador del empresario autenticado.
+      operationId: operadorListRutas
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+      responses:
+        '200':
+          description: Lista paginada de rutas asignadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorRutaPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Rutas del operador
+      summary: Asignar ruta al operador
+      description: Asigna una ruta activa del catalogo al operador del empresario autenticado.
+      operationId: operadorCreateRuta
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperadorRutaRequest'
+            example:
+              ruta_id: 1
+      responses:
+        '201':
+          description: Ruta asignada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorRutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: La ruta ya esta asignada al operador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion o ruta inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /operador/rutas/{id}:
+    delete:
+      tags:
+        - Rutas del operador
+      summary: Eliminar ruta asignada
+      description: Elimina fisicamente una asignacion propia del operador autenticado.
+      operationId: operadorDeleteRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OperadorRutaId'
+      responses:
+        '200':
+          description: Ruta asignada eliminada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /operador/rutas/{id}/toggle-status:
+    patch:
+      tags:
+        - Rutas del operador
+      summary: Alternar estado de ruta asignada
+      description: Cambia automaticamente entre activo e inactivo sin recibir body.
+      operationId: operadorToggleRutaStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OperadorRutaId'
+      responses:
+        '200':
+          description: Estado de la ruta asignada actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorRutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
   /admin/operadores:
     get:
       tags:
@@ -694,6 +827,13 @@ components:
       schema:
         type: integer
       example: 1
+    OperadorRutaId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
     RutaId:
       in: path
       name: id
@@ -1038,6 +1178,96 @@ components:
             - string
             - 'null'
           example: Documentacion vencida
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+    OperadorRutaRequest:
+      type: object
+      required:
+        - ruta_id
+      properties:
+        ruta_id:
+          type: integer
+          example: 1
+    OperadorRutaMutationResponse:
+      type: object
+      required:
+        - message
+        - operador_ruta
+      properties:
+        message:
+          type: string
+          example: Ruta asignada al operador correctamente.
+        operador_ruta:
+          $ref: '#/components/schemas/OperadorRuta'
+    OperadorRutaPaginatedResponse:
+      type: object
+      required:
+        - operador_rutas
+        - pagination
+      properties:
+        operador_rutas:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperadorRuta'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    OperadorRuta:
+      type: object
+      required:
+        - id
+        - ruta
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        ruta:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            ruta:
+              type: string
+              example: 301-A
+            denominacion:
+              type: string
+              example: Usulutan - San Salvador
+            tarifa:
+              type: string
+              example: '1.50'
+            estado:
+              $ref: '#/components/schemas/CatalogItem'
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
         created_at:
           type:
             - string
