@@ -42,4 +42,9 @@ class Estado extends Model
     {
         return $this->hasMany(Operador::class);
     }
+
+    public function rutas(): HasMany
+    {
+        return $this->hasMany(Ruta::class);
+    }
 }

@@ -15,6 +15,8 @@ tags:
     description: Gestion de usuarios disponible solo para administradores.
   - name: Operadores
     description: Registro y administracion de operadores de transporte.
+  - name: Rutas
+    description: Catalogo administrativo de rutas de transporte.
 paths:
   /login:
     post:
@@ -343,6 +345,163 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
+  /admin/rutas:
+    get:
+      tags:
+        - Rutas
+      summary: Listar rutas
+      description: Devuelve rutas paginadas con su estado. Solo administradores.
+      operationId: adminListRutas
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+      responses:
+        '200':
+          description: Lista paginada de rutas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutaPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Rutas
+      summary: Crear ruta
+      description: Crea una ruta y la deja activa automaticamente.
+      operationId: adminCreateRuta
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RutaRequest'
+            example:
+              ruta: 301-A
+              denominacion: Usulutan - San Salvador
+              tarifa: 1.50
+      responses:
+        '201':
+          description: Ruta creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/rutas/{id}:
+    put:
+      tags:
+        - Rutas
+      summary: Actualizar ruta
+      operationId: adminUpdateRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RutaId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RutaRequest'
+      responses:
+        '200':
+          description: Ruta actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+    delete:
+      tags:
+        - Rutas
+      summary: Eliminar ruta
+      description: Elimina fisicamente la ruta de la base de datos.
+      operationId: adminDeleteRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RutaId'
+      responses:
+        '200':
+          description: Ruta eliminada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/rutas/{id}/toggle-status:
+    patch:
+      tags:
+        - Rutas
+      summary: Alternar estado de ruta
+      description: Cambia automaticamente entre estado activo e inactivo/desactivado sin recibir body.
+      operationId: adminToggleRutaStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RutaId'
+      responses:
+        '200':
+          description: Estado de la ruta actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
   /admin/users:
     get:
       tags:
@@ -529,6 +688,13 @@ components:
         type: integer
       example: 1
     OperadorId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
+    RutaId:
       in: path
       name: id
       required: true
@@ -872,6 +1038,102 @@ components:
             - string
             - 'null'
           example: Documentacion vencida
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+    RutaRequest:
+      type: object
+      required:
+        - ruta
+        - denominacion
+        - tarifa
+      properties:
+        ruta:
+          type: string
+          maxLength: 50
+          example: 301-A
+        denominacion:
+          type: string
+          maxLength: 255
+          example: Usulutan - San Salvador
+        tarifa:
+          type: number
+          format: float
+          minimum: 0
+          example: 1.50
+    RutaMutationResponse:
+      type: object
+      required:
+        - message
+        - ruta
+      properties:
+        message:
+          type: string
+          example: Ruta actualizada correctamente.
+        ruta:
+          $ref: '#/components/schemas/Ruta'
+    RutaPaginatedResponse:
+      type: object
+      required:
+        - rutas
+        - pagination
+      properties:
+        rutas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ruta'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    Ruta:
+      type: object
+      required:
+        - id
+        - ruta
+        - denominacion
+        - tarifa
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        ruta:
+          type: string
+          example: 301-A
+        denominacion:
+          type: string
+          example: Usulutan - San Salvador
+        tarifa:
+          type: string
+          example: '1.50'
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
         created_at:
           type:
             - string

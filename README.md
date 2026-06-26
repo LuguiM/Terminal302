@@ -224,6 +224,26 @@ Al reactivar un operador desactivado, el mismo endpoint se ejecuta sin body y el
 
 Un operador desactivado no desactiva el usuario empresario. El empresario puede iniciar sesion, pero sus endpoints de operador y futuras acciones operativas responden `403` hasta que el operador vuelva a estar activo.
 
+## Rutas
+
+Rutas administrativas protegidas con Bearer token, rol `administrador` y contrasena inicial ya cambiada:
+
+- `GET /admin/rutas`
+- `POST /admin/rutas`
+- `PUT /admin/rutas/{id}`
+- `PATCH /admin/rutas/{id}/toggle-status`
+- `DELETE /admin/rutas/{id}`
+
+Campos para crear o editar ruta:
+
+- `ruta`
+- `denominacion`
+- `tarifa`
+
+Al crear una ruta no se envia `estado_id`; el sistema asigna automaticamente el estado activo. El endpoint `PATCH /admin/rutas/{id}/toggle-status` alterna entre activo e inactivo/desactivado sin body.
+
+Para este catalogo, `DELETE /admin/rutas/{id}` elimina fisicamente la ruta de la base de datos. No existe endpoint `GET /admin/rutas/{id}`.
+
 Ejemplo de login:
 
 ```bash
