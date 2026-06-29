@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\BusController;
 use App\Http\Controllers\Api\OperadorController;
 use App\Http\Controllers\Api\OperadorHorarioController;
 use App\Http\Controllers\Api\OperadorRutaController;
+use App\Http\Controllers\Api\VendedorVentaHorarioController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -38,6 +39,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/horarios/rutas', [OperadorHorarioController::class, 'rutas']);
             Route::get('/horarios/rutas/{ruta}', [OperadorHorarioController::class, 'diasPorRuta']);
             Route::get('/horarios', [OperadorHorarioController::class, 'horariosPorRutaYDia']);
+        });
+
+    Route::middleware(['password.changed', 'role:vendedor'])
+        ->prefix('vendedor')
+        ->group(function (): void {
+            Route::get('/rutas-disponibles', [VendedorVentaHorarioController::class, 'rutasDisponibles']);
+            Route::get('/rutas/{ruta}/horarios-disponibles', [VendedorVentaHorarioController::class, 'horariosDisponiblesPorRuta']);
+            Route::patch('/ventas-horarios/{ventaHorario}/cerrar', [VendedorVentaHorarioController::class, 'cerrar']);
         });
 
     Route::middleware(['password.changed', 'role:administrador'])

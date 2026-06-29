@@ -58,8 +58,7 @@ Las respuestas deben mantener un formato consistente con los controladores ya ex
 
 Notas:
 
-- Respetar los mensajes ya usados en el proyecto.
-- No mezclar varios estilos de respuesta en un mismo módulo.
+- Mezclar varios estilos de respuesta en un mismo módulo siempre y cuando sea necesario.
 - Para listados paginados, usar siempre `App\Support\ApiResponse`.
 
 ---

@@ -62,4 +62,9 @@ class Estado extends Model
     {
         return $this->hasMany(Horario::class);
     }
+
+    public function ventasHorarios(): HasMany
+    {
+        return $this->hasMany(VentaHorario::class);
+    }
 }

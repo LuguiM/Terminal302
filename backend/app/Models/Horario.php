@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Horario extends Model
 {
@@ -47,5 +48,10 @@ class Horario extends Model
     public function estado(): BelongsTo
     {
         return $this->belongsTo(Estado::class);
+    }
+
+    public function ventasHorarios(): HasMany
+    {
+        return $this->hasMany(VentaHorario::class);
     }
 }

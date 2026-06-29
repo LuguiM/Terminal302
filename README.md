@@ -402,6 +402,32 @@ GET /operador/horarios?ruta_id=1&dia_id=1
 
 No existen endpoints de creacion, edicion, eliminacion, detalle ni cambio de estado de horarios para empresarios.
 
+## Ventas de horarios
+
+`ventas_horarios` controla el ciclo operativo diario de venta de un horario recurrente. No es un modulo administrativo y no implementa todavia la venta de tickets.
+
+Rutas para vendedores, protegidas con Bearer token, rol `vendedor` y contrasena inicial ya cambiada:
+
+- `GET /vendedor/rutas-disponibles`
+- `GET /vendedor/rutas/{ruta_id}/horarios-disponibles`
+- `PATCH /vendedor/ventas-horarios/{id}/cerrar`
+
+`GET /vendedor/rutas-disponibles` devuelve rutas activas que tienen al menos un horario activo asociado.
+
+`GET /vendedor/rutas/{ruta_id}/horarios-disponibles` usa la fecha y hora de `America/El_Salvador`, busca horarios activos del dia operativo actual, determina el horario en meta y el proximo horario a salir. Si no existe un registro en `ventas_horarios` para el horario y la fecha actual, el sistema lo crea automaticamente con venta abierta, contadores en cero y estado activo.
+
+La respuesta incluye capacidad, tickets vendidos, tickets en sobreventa, si permite sobreventa, si la venta esta cerrada y `puede_vender`.
+
+Para cerrar una venta operativa:
+
+```json
+{
+  "motivo_cierre": "Unidad completa"
+}
+```
+
+El sistema asigna automaticamente el vendedor autenticado en `cerrada_por` y la fecha/hora de cierre. No existen endpoints manuales para crear, editar, eliminar o ver una `venta_horario` individual.
+
 Ejemplo de login:
 
 ```bash

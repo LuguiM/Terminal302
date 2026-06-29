@@ -21,6 +21,8 @@ tags:
     description: Gestion de buses del operador del empresario autenticado.
   - name: Horarios
     description: Gestion administrativa y consulta de horarios de salida.
+  - name: Ventas de horarios
+    description: Soporte operativo para consulta y cierre de ciclos de venta.
   - name: Rutas
     description: Catalogo administrativo de rutas de transporte.
 paths:
@@ -630,6 +632,100 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /vendedor/rutas-disponibles:
+    get:
+      tags:
+        - Ventas de horarios
+      summary: Listar rutas disponibles para venta
+      description: Devuelve rutas activas que tienen al menos un horario activo asociado.
+      operationId: vendedorRutasDisponibles
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Rutas disponibles.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutasListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /vendedor/rutas/{id}/horarios-disponibles:
+    get:
+      tags:
+        - Ventas de horarios
+      summary: Consultar horarios disponibles de ruta
+      description: Devuelve el horario en meta y el proximo a salir. Crea automaticamente ventas_horarios para la fecha operativa actual si no existen.
+      operationId: vendedorHorariosDisponiblesPorRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RutaId'
+      responses:
+        '200':
+          description: Horarios disponibles para venta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HorariosDisponiblesVentaResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Ruta inactiva o no se pudo determinar horario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /vendedor/ventas-horarios/{id}/cerrar:
+    patch:
+      tags:
+        - Ventas de horarios
+      summary: Cerrar venta de horario
+      description: Cierra el ciclo operativo de venta de un horario. El vendedor autenticado se asigna automaticamente.
+      operationId: vendedorCerrarVentaHorario
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VentaHorarioId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CerrarVentaHorarioRequest'
+            example:
+              motivo_cierre: Unidad completa
+      responses:
+        '200':
+          description: Venta de horario cerrada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VentaHorarioMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: La venta de horario ya esta cerrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
         '422':
           description: Error de validacion.
           content:
@@ -1386,6 +1482,13 @@ components:
       schema:
         type: integer
       example: 1
+    VentaHorarioId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
     RutaId:
       in: path
       name: id
@@ -2113,6 +2216,140 @@ components:
             - 'null'
           format: date-time
           example: '2026-06-25T19:00:00.000000Z'
+    CerrarVentaHorarioRequest:
+      type: object
+      properties:
+        motivo_cierre:
+          type:
+            - string
+            - 'null'
+          maxLength: 1000
+          example: Unidad completa
+    VentaHorarioMutationResponse:
+      type: object
+      required:
+        - message
+        - venta_horario
+      properties:
+        message:
+          type: string
+          example: Venta de horario cerrada correctamente.
+        venta_horario:
+          $ref: '#/components/schemas/VentaHorario'
+    HorariosDisponiblesVentaResponse:
+      type: object
+      required:
+        - fecha_operacion
+        - ruta
+        - en_meta
+        - proximo_a_salir
+      properties:
+        fecha_operacion:
+          type: string
+          format: date
+          example: '2026-06-29'
+        ruta:
+          $ref: '#/components/schemas/Ruta'
+        en_meta:
+          $ref: '#/components/schemas/HorarioDisponibleVenta'
+        proximo_a_salir:
+          oneOf:
+            - $ref: '#/components/schemas/HorarioDisponibleVenta'
+            - type: 'null'
+    HorarioDisponibleVenta:
+      type: object
+      required:
+        - horario_id
+        - venta_horario_id
+        - hora_salida
+        - capacidad
+        - total_tickets_vendidos
+        - total_tickets_sobreventa
+        - sobreventa_permitida
+        - venta_cerrada
+        - puede_vender
+      properties:
+        horario_id:
+          type: integer
+          example: 1
+        venta_horario_id:
+          type: integer
+          example: 10
+        hora_salida:
+          type: string
+          example: '10:30'
+        ruta:
+          type: object
+        operador:
+          type: object
+        bus:
+          type: object
+        capacidad:
+          type: integer
+          example: 45
+        total_tickets_vendidos:
+          type: integer
+          example: 0
+        total_tickets_sobreventa:
+          type: integer
+          example: 0
+        sobreventa_permitida:
+          type: boolean
+          example: false
+        venta_cerrada:
+          type: boolean
+          example: false
+        puede_vender:
+          type: boolean
+          example: true
+    VentaHorario:
+      type: object
+      required:
+        - id
+        - horario_id
+        - fecha_operacion
+        - venta_cerrada
+        - total_tickets_vendidos
+        - total_tickets_sobreventa
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        horario_id:
+          type: integer
+          example: 1
+        fecha_operacion:
+          type: string
+          format: date
+          example: '2026-06-29'
+        venta_cerrada:
+          type: boolean
+          example: true
+        cerrada_por:
+          type:
+            - object
+            - 'null'
+        fecha_cierre:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        motivo_cierre:
+          type:
+            - string
+            - 'null'
+          example: Unidad completa
+        total_tickets_vendidos:
+          type: integer
+          example: 0
+        total_tickets_sobreventa:
+          type: integer
+          example: 0
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        horario:
+          type: object
     Dia:
       type: object
       required:
