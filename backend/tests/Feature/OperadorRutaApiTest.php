@@ -45,9 +45,9 @@ class OperadorRutaApiTest extends TestCase
                     [
                         'id',
                         'ruta',
+                        'denominacion',
+                        'tarifa',
                         'estado',
-                        'created_at',
-                        'updated_at',
                     ],
                 ],
                 'pagination' => [
@@ -58,7 +58,7 @@ class OperadorRutaApiTest extends TestCase
                 ],
             ])
             ->assertJsonPath('pagination.total', 1)
-            ->assertJsonPath('operador_rutas.0.ruta.ruta', '302');
+            ->assertJsonPath('operador_rutas.0.ruta', '302');
     }
 
     public function test_empresario_can_assign_active_route_to_operator(): void
@@ -74,7 +74,7 @@ class OperadorRutaApiTest extends TestCase
         ])
             ->assertCreated()
             ->assertJsonPath('message', 'Ruta asignada al operador correctamente.')
-            ->assertJsonPath('operador_ruta.ruta.id', $ruta->id)
+            ->assertJsonPath('operador_ruta.ruta', $ruta->ruta)
             ->assertJsonPath('operador_ruta.estado.nombre', 'Activo');
     }
 

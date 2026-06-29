@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\AdminOperadorController;
 use App\Http\Controllers\Api\AdminRutaController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BusController;
 use App\Http\Controllers\Api\OperadorController;
 use App\Http\Controllers\Api\OperadorRutaController;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::post('/rutas', [OperadorRutaController::class, 'store']);
             Route::patch('/rutas/{operadorRuta}/toggle-status', [OperadorRutaController::class, 'toggleStatus']);
             Route::delete('/rutas/{operadorRuta}', [OperadorRutaController::class, 'destroy']);
+
+            Route::get('/buses', [BusController::class, 'index']);
+            Route::post('/buses', [BusController::class, 'store']);
+            Route::put('/buses/{bus}', [BusController::class, 'update']);
+            Route::patch('/buses/{bus}/toggle-status', [BusController::class, 'toggleStatus']);
         });
 
     Route::middleware(['password.changed', 'role:administrador'])

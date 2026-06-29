@@ -269,6 +269,38 @@ Solo se pueden asignar rutas activas del catalogo general. No se permite duplica
 
 Si el empresario se equivoca, debe eliminar la asignacion con `DELETE /operador/rutas/{id}` y crear una nueva. No existe endpoint de detalle ni endpoint de edicion para esta asignacion.
 
+## Buses del operador
+
+Rutas para empresarios, protegidas con Bearer token, rol `empresario`, contrasena inicial ya cambiada y operador activo:
+
+- `GET /operador/buses`
+- `POST /operador/buses`
+- `PUT /operador/buses/{id}`
+- `PATCH /operador/buses/{id}/toggle-status`
+
+No existe endpoint de detalle ni eliminacion para buses en esta etapa.
+
+Campos para crear o editar bus:
+
+- `ruta_id`
+- `placa`
+- `marca`
+- `nombre_unidad` opcional
+- `capacidad`
+- `tipo_bus_id`
+
+El sistema obtiene automaticamente el operador desde el usuario autenticado y asigna estado activo al crear. No se debe enviar `operador_id` ni `estado_id`.
+
+La ruta seleccionada debe existir, estar activa en el catalogo general y estar asignada activamente al operador en `operador_rutas`. La placa es unica globalmente y la capacidad debe ser mayor a 0.
+
+`GET /operador/buses` devuelve una lista paginada y permite filtros opcionales:
+
+- `ruta_id`
+- `estado_id`
+- `search` por placa, marca o nombre de unidad
+
+El endpoint `PATCH /operador/buses/{id}/toggle-status` alterna entre activo e inactivo/desactivado sin recibir body.
+
 Ejemplo de login:
 
 ```bash
@@ -305,4 +337,4 @@ MAIL_PASSWORD=TU_PASSWORD_MAILTRAP
 
 ## Alcance actual
 
-Esta etapa no implementa rutas, buses, horarios, tickets, QR, validacion publica ni integracion real con AWS. Las carpetas `lambda/`, `infrastructure/` y `docs/` quedan preparadas para crecer en fases posteriores.
+Esta etapa no implementa horarios, tickets, QR, validacion publica ni integracion real con AWS. Las carpetas `lambda/`, `infrastructure/` y `docs/` quedan preparadas para crecer en fases posteriores.

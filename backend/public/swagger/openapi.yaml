@@ -17,6 +17,8 @@ tags:
     description: Registro y administracion de operadores de transporte.
   - name: Rutas del operador
     description: Gestion de rutas asignadas al operador del empresario autenticado.
+  - name: Buses
+    description: Gestion de buses del operador del empresario autenticado.
   - name: Rutas
     description: Catalogo administrativo de rutas de transporte.
 paths:
@@ -371,6 +373,163 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OperadorRutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /operador/buses:
+    get:
+      tags:
+        - Buses
+      summary: Listar buses del operador
+      description: Devuelve buses paginados del operador del empresario autenticado. Permite filtros por ruta, estado y busqueda por placa, marca o nombre de unidad.
+      operationId: operadorListBuses
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: ruta_id
+          schema:
+            type: integer
+          example: 1
+        - in: query
+          name: estado_id
+          schema:
+            type: integer
+          example: 1
+        - in: query
+          name: search
+          schema:
+            type: string
+          example: AB-123
+      responses:
+        '200':
+          description: Lista paginada de buses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Buses
+      summary: Registrar bus del operador
+      description: Crea un bus propio del operador autenticado y lo deja activo automaticamente. La ruta debe estar activa y asignada activamente al operador.
+      operationId: operadorCreateBus
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+            example:
+              ruta_id: 1
+              placa: AB-123
+              marca: Mercedes
+              nombre_unidad: Unidad Centro
+              capacidad: 45
+              tipo_bus_id: 1
+      responses:
+        '201':
+          description: Bus registrado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion, ruta inactiva o tipo de bus inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /operador/buses/{id}:
+    put:
+      tags:
+        - Buses
+      summary: Actualizar bus del operador
+      description: Actualiza un bus si pertenece al operador del empresario autenticado. No permite cambiar operador_id ni estado_id.
+      operationId: operadorUpdateBus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BusId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+      responses:
+        '200':
+          description: Bus actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /operador/buses/{id}/toggle-status:
+    patch:
+      tags:
+        - Buses
+      summary: Alternar estado de bus
+      description: Cambia automaticamente entre activo e inactivo sin recibir body.
+      operationId: operadorToggleBusStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BusId'
+      responses:
+        '200':
+          description: Estado del bus actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusMutationResponse'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -834,6 +993,13 @@ components:
       schema:
         type: integer
       example: 1
+    BusId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
     RutaId:
       in: path
       name: id
@@ -1244,6 +1410,107 @@ components:
       required:
         - id
         - ruta
+        - denominacion
+        - tarifa
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        ruta:
+          type: string
+          example: 301-A
+        denominacion:
+          type: string
+          example: Usulutan - San Salvador
+        tarifa:
+          type: string
+          example: '1.50'
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+    BusRequest:
+      type: object
+      required:
+        - ruta_id
+        - placa
+        - marca
+        - capacidad
+        - tipo_bus_id
+      properties:
+        ruta_id:
+          type: integer
+          example: 1
+        placa:
+          type: string
+          maxLength: 50
+          example: AB-123
+        marca:
+          type: string
+          maxLength: 100
+          example: Mercedes
+        nombre_unidad:
+          type:
+            - string
+            - 'null'
+          maxLength: 100
+          example: Unidad Centro
+        capacidad:
+          type: integer
+          minimum: 1
+          example: 45
+        tipo_bus_id:
+          type: integer
+          example: 1
+    BusMutationResponse:
+      type: object
+      required:
+        - message
+        - bus
+      properties:
+        message:
+          type: string
+          example: Bus actualizado correctamente.
+        bus:
+          $ref: '#/components/schemas/Bus'
+    BusPaginatedResponse:
+      type: object
+      required:
+        - buses
+        - pagination
+      properties:
+        buses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bus'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    Bus:
+      type: object
+      required:
+        - id
+        - ruta
+        - placa
+        - marca
+        - capacidad
+        - tipo_bus
         - estado
       properties:
         id:
@@ -1257,15 +1524,29 @@ components:
               example: 1
             ruta:
               type: string
-              example: 301-A
+              example: 302
             denominacion:
               type: string
               example: Usulutan - San Salvador
             tarifa:
               type: string
               example: '1.50'
-            estado:
-              $ref: '#/components/schemas/CatalogItem'
+        placa:
+          type: string
+          example: AB-123
+        marca:
+          type: string
+          example: Mercedes
+        nombre_unidad:
+          type:
+            - string
+            - 'null'
+          example: Unidad Centro
+        capacidad:
+          type: integer
+          example: 45
+        tipo_bus:
+          $ref: '#/components/schemas/CatalogItem'
         estado:
           $ref: '#/components/schemas/CatalogItem'
         created_at:

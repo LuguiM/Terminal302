@@ -33,6 +33,11 @@ class Ruta extends Model
         return $this->hasMany(OperadorRuta::class);
     }
 
+    public function buses(): HasMany
+    {
+        return $this->hasMany(Bus::class);
+    }
+
     public function scopeActivas(Builder $query): Builder
     {
         $activeStatus = Estado::activo();
