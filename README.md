@@ -139,7 +139,8 @@ docker compose exec backend composer install
 Ejecutar Artisan dentro del backend:
 
 ```bash
-docker compose exec backend php artisan migrate:fresh --seed
+docker compose exec backend php artisan migrate
+docker compose exec backend php artisan db:seed
 docker compose exec backend php artisan test
 ```
 
@@ -153,11 +154,52 @@ docker compose -f docker-compose.yml up -d --build
 
 Con los contenedores arriba:
 
+Aplicar migraciones nuevas sin borrar datos:
+
+```bash
+docker compose exec backend php artisan migrate
+```
+
+Ejecutar seeders sin borrar datos:
+
+```bash
+docker compose exec backend php artisan db:seed
+```
+
+Recrear toda la base local desde cero:
+
 ```bash
 docker compose exec backend php artisan migrate:fresh --seed
 ```
 
+`migrate:fresh --seed` elimina todas las tablas de la base configurada y luego ejecuta migraciones y seeders. Usalo solo cuando quieras reiniciar completamente los datos locales.
+
 El seeder genera un administrador inicial con email configurable mediante `INITIAL_ADMIN_EMAIL`. La contrasena temporal se muestra en consola una sola vez y el usuario debe cambiarla en su primer inicio de sesion.
+
+## Base de datos para tests
+
+Los tests usan una base separada llamada `terminal302_testing`, configurada en `backend/phpunit.xml`. Esto evita que `php artisan test` borre o reinicie los datos de desarrollo de `terminal302`.
+
+En instalaciones nuevas, Docker crea `terminal302_testing` automaticamente con el script `docker/postgres/init/01-create-testing-database.sql`.
+
+Si ya tenias el volumen de PostgreSQL creado antes de este cambio, crea la base de testing una sola vez:
+
+```bash
+docker compose exec postgres sh -c 'psql -U terminal302 -d terminal302 -tAc "SELECT 1 FROM pg_database WHERE datname=''terminal302_testing''" | grep -q 1 || createdb -U terminal302 terminal302_testing'
+```
+
+Luego puedes ejecutar pruebas sin tocar la base de desarrollo:
+
+```bash
+docker compose exec backend php artisan test
+```
+
+Diferencia rapida de comandos:
+
+- `php artisan migrate`: aplica migraciones pendientes y conserva datos.
+- `php artisan db:seed`: ejecuta seeders y conserva tablas existentes.
+- `php artisan migrate:fresh --seed`: borra todas las tablas de la base activa, migra desde cero y ejecuta seeders.
+- `php artisan test`: ejecuta pruebas usando `terminal302_testing`; esa base se puede reiniciar durante los tests sin afectar `terminal302`.
 
 ## API inicial
 
@@ -301,6 +343,65 @@ La ruta seleccionada debe existir, estar activa en el catalogo general y estar a
 
 El endpoint `PATCH /operador/buses/{id}/toggle-status` alterna entre activo e inactivo/desactivado sin recibir body.
 
+## Horarios
+
+Los horarios representan salidas programadas por ruta, operador, bus, dia y hora. La hora se envia en formato `HH:mm`.
+
+Rutas administrativas protegidas con Bearer token, rol `administrador` y contrasena inicial ya cambiada:
+
+- `GET /admin/horarios/rutas`
+- `GET /admin/horarios/rutas/{ruta_id}`
+- `GET /admin/horarios`
+- `GET /admin/horarios/rutas/{ruta_id}/operadores`
+- `GET /admin/horarios/buses`
+- `POST /admin/horarios`
+- `PUT /admin/horarios/{id}`
+- `PATCH /admin/horarios/{id}/toggle-status`
+- `DELETE /admin/horarios/{id}`
+
+`GET /admin/horarios/rutas` devuelve rutas activas y acepta `search`.
+
+`GET /admin/horarios/rutas/{ruta_id}` devuelve solo los dias que tienen horarios asignados para esa ruta. Para consultar los horarios de un dia especifico se usa:
+
+```text
+GET /admin/horarios?ruta_id=1&dia_id=1
+```
+
+Para cargar selectores de creacion o edicion:
+
+```text
+GET /admin/horarios/rutas/{ruta_id}/operadores
+GET /admin/horarios/buses?ruta_id=1&operador_id=1
+```
+
+Campos para crear o editar horario:
+
+- `ruta_id`
+- `operador_id`
+- `bus_id`
+- `dia_id`
+- `hora_salida`
+- `sobreventa_permitida`
+
+No se debe enviar `estado_id`; el sistema asigna estado activo al crear. El operador debe estar activo y tener la ruta asignada activamente. El bus debe estar activo, pertenecer al operador y estar asociado a la misma ruta. No se permite duplicar la combinacion ruta, operador, bus, dia y hora de salida.
+
+`PATCH /admin/horarios/{id}/toggle-status` alterna entre activo e inactivo/desactivado sin body. `DELETE /admin/horarios/{id}` elimina fisicamente el horario.
+
+Rutas para empresarios, protegidas con Bearer token, rol `empresario`, contrasena inicial ya cambiada y operador activo:
+
+- `GET /operador/horarios/rutas`
+- `GET /operador/horarios/rutas/{ruta_id}`
+- `GET /operador/horarios`
+
+El empresario solo consulta rutas activas asignadas activamente a su operador y horarios activos de su operador.
+
+```text
+GET /operador/horarios/rutas/{ruta_id}
+GET /operador/horarios?ruta_id=1&dia_id=1
+```
+
+No existen endpoints de creacion, edicion, eliminacion, detalle ni cambio de estado de horarios para empresarios.
+
 Ejemplo de login:
 
 ```bash
@@ -337,4 +438,4 @@ MAIL_PASSWORD=TU_PASSWORD_MAILTRAP
 
 ## Alcance actual
 
-Esta etapa no implementa horarios, tickets, QR, validacion publica ni integracion real con AWS. Las carpetas `lambda/`, `infrastructure/` y `docs/` quedan preparadas para crecer en fases posteriores.
+Esta etapa no implementa tickets, QR, validacion publica ni integracion real con AWS. Las carpetas `lambda/`, `infrastructure/` y `docs/` quedan preparadas para crecer en fases posteriores.

@@ -38,6 +38,11 @@ class Ruta extends Model
         return $this->hasMany(Bus::class);
     }
 
+    public function horarios(): HasMany
+    {
+        return $this->hasMany(Horario::class);
+    }
+
     public function scopeActivas(Builder $query): Builder
     {
         $activeStatus = Estado::activo();

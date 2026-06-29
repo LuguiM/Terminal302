@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\Api\AdminUserController;
+use App\Http\Controllers\Api\AdminHorarioController;
 use App\Http\Controllers\Api\AdminOperadorController;
 use App\Http\Controllers\Api\AdminRutaController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BusController;
 use App\Http\Controllers\Api\OperadorController;
+use App\Http\Controllers\Api\OperadorHorarioController;
 use App\Http\Controllers\Api\OperadorRutaController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +34,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::post('/buses', [BusController::class, 'store']);
             Route::put('/buses/{bus}', [BusController::class, 'update']);
             Route::patch('/buses/{bus}/toggle-status', [BusController::class, 'toggleStatus']);
+
+            Route::get('/horarios/rutas', [OperadorHorarioController::class, 'rutas']);
+            Route::get('/horarios/rutas/{ruta}', [OperadorHorarioController::class, 'diasPorRuta']);
+            Route::get('/horarios', [OperadorHorarioController::class, 'horariosPorRutaYDia']);
         });
 
     Route::middleware(['password.changed', 'role:administrador'])
@@ -53,5 +59,15 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::put('/rutas/{ruta}', [AdminRutaController::class, 'update']);
             Route::patch('/rutas/{ruta}/toggle-status', [AdminRutaController::class, 'toggleStatus']);
             Route::delete('/rutas/{ruta}', [AdminRutaController::class, 'destroy']);
+
+            Route::get('/horarios/rutas', [AdminHorarioController::class, 'rutas']);
+            Route::get('/horarios/rutas/{ruta}', [AdminHorarioController::class, 'diasPorRuta']);
+            Route::get('/horarios/rutas/{ruta}/operadores', [AdminHorarioController::class, 'operadoresPorRuta']);
+            Route::get('/horarios/buses', [AdminHorarioController::class, 'busesPorRutaYOperador']);
+            Route::get('/horarios', [AdminHorarioController::class, 'horariosPorRutaYDia']);
+            Route::post('/horarios', [AdminHorarioController::class, 'store']);
+            Route::put('/horarios/{horario}', [AdminHorarioController::class, 'update']);
+            Route::patch('/horarios/{horario}/toggle-status', [AdminHorarioController::class, 'toggleStatus']);
+            Route::delete('/horarios/{horario}', [AdminHorarioController::class, 'destroy']);
         });
 });

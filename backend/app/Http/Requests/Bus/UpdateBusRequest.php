@@ -37,8 +37,8 @@ class UpdateBusRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'ruta_id.exists' => 'La ruta seleccionada no existe',
-            'tipo_bus_id.exists' => 'El tipo de bus seleccionado no existe',
+            'ruta_id.exists' => 'La ruta seleccionada no existe.',
+            'tipo_bus_id.exists' => 'El tipo de bus seleccionado no existe.',
         ];
     }
 }
