@@ -67,4 +67,9 @@ class Estado extends Model
     {
         return $this->hasMany(VentaHorario::class);
     }
+
+    public function ticketPlantillas(): HasMany
+    {
+        return $this->hasMany(TicketPlantilla::class);
+    }
 }

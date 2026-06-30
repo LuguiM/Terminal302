@@ -23,6 +23,8 @@ tags:
     description: Gestion administrativa y consulta de horarios de salida.
   - name: Ventas de horarios
     description: Soporte operativo para consulta y cierre de ciclos de venta.
+  - name: Plantillas de ticket
+    description: Gestion administrativa de plantillas visuales para tickets.
   - name: Rutas
     description: Catalogo administrativo de rutas de transporte.
 paths:
@@ -1269,6 +1271,230 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
+  /admin/ticket-plantillas:
+    get:
+      tags:
+        - Plantillas de ticket
+      summary: Listar plantillas de ticket
+      description: Devuelve plantillas de ticket paginadas con filtros opcionales. Solo administradores.
+      operationId: adminListTicketPlantillas
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: estado_id
+          schema:
+            type: integer
+        - in: query
+          name: es_predeterminada
+          schema:
+            type: boolean
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista paginada de plantillas de ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Plantillas de ticket
+      summary: Crear plantilla de ticket
+      description: Sube una imagen base, valida sus dimensiones configuradas y crea la plantilla activa automaticamente.
+      operationId: adminCreateTicketPlantilla
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TicketPlantillaStoreRequest'
+      responses:
+        '201':
+          description: Plantilla de ticket creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/ticket-plantillas/{id}:
+    get:
+      tags:
+        - Plantillas de ticket
+      summary: Ver plantilla de ticket
+      operationId: adminShowTicketPlantilla
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketPlantillaId'
+      responses:
+        '200':
+          description: Plantilla de ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaResourceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Plantillas de ticket
+      summary: Actualizar plantilla de ticket
+      description: Permite actualizar datos, posiciones y reemplazar la imagen base.
+      operationId: adminUpdateTicketPlantilla
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketPlantillaId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TicketPlantillaUpdateRequest'
+      responses:
+        '200':
+          description: Plantilla de ticket actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion o plantilla inactiva al marcar como predeterminada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+    delete:
+      tags:
+        - Plantillas de ticket
+      summary: Eliminar plantilla de ticket
+      description: Elimina fisicamente la plantilla y su imagen si no esta referenciada por otro registro.
+      operationId: adminDeleteTicketPlantilla
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketPlantillaId'
+      responses:
+        '200':
+          description: Plantilla de ticket eliminada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/ticket-plantillas/{id}/toggle-status:
+    patch:
+      tags:
+        - Plantillas de ticket
+      summary: Alternar estado de plantilla de ticket
+      description: Cambia automaticamente entre activo e inactivo/desactivado sin recibir body. Si queda inactiva, deja de ser predeterminada.
+      operationId: adminToggleTicketPlantillaStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketPlantillaId'
+      responses:
+        '200':
+          description: Estado de la plantilla de ticket actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/ticket-plantillas/{id}/set-default:
+    patch:
+      tags:
+        - Plantillas de ticket
+      summary: Marcar plantilla predeterminada
+      description: Marca una plantilla activa como predeterminada y desmarca las demas.
+      operationId: adminSetDefaultTicketPlantilla
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketPlantillaId'
+      responses:
+        '200':
+          description: Plantilla de ticket predeterminada actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: La plantilla esta inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
   /admin/users:
     get:
       tags:
@@ -1490,6 +1716,13 @@ components:
         type: integer
       example: 1
     RutaId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
+    TicketPlantillaId:
       in: path
       name: id
       required: true
@@ -2462,6 +2695,259 @@ components:
             - 'null'
           format: date-time
           example: '2026-06-25T19:00:00.000000Z'
+    TicketPlantillaStoreRequest:
+      type: object
+      required:
+        - nombre
+        - image
+      properties:
+        nombre:
+          type: string
+          maxLength: 255
+          example: Ticket general 1000x500
+        image:
+          type: string
+          format: binary
+          description: Imagen base con dimensiones exactas configuradas por TICKET_TEMPLATE_WIDTH y TICKET_TEMPLATE_HEIGHT.
+        qr_location:
+          type:
+            - string
+            - 'null'
+          description: JSON valido con x, y, width y height.
+          example: '{"x":650,"y":40,"width":120,"height":120}'
+        precio_location:
+          type:
+            - string
+            - 'null'
+          description: JSON valido con coordenadas y estilo de texto.
+          example: '{"x":80,"y":150,"font_size":18,"color":"#000000","align":"left"}'
+        fecha_hora_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":180,"font_size":16,"color":"#000000","align":"left"}'
+        asiento_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":210,"font_size":16,"color":"#000000","align":"left"}'
+        codigo_ticket_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":90,"font_size":18,"color":"#000000","align":"left"}'
+        ruta_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":120,"font_size":18,"color":"#000000","align":"left"}'
+        operador_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":240,"font_size":16,"color":"#000000","align":"left"}'
+        es_predeterminada:
+          type: boolean
+          example: false
+    TicketPlantillaUpdateRequest:
+      type: object
+      required:
+        - nombre
+      properties:
+        nombre:
+          type: string
+          maxLength: 255
+          example: Ticket general 1000x500
+        image:
+          type:
+            - string
+            - 'null'
+          format: binary
+          description: Nueva imagen base opcional con dimensiones exactas configuradas.
+        qr_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":650,"y":40,"width":120,"height":120}'
+        precio_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":150,"font_size":18,"color":"#000000","align":"left"}'
+        fecha_hora_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":180,"font_size":16,"color":"#000000","align":"left"}'
+        asiento_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":210,"font_size":16,"color":"#000000","align":"left"}'
+        codigo_ticket_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":90,"font_size":18,"color":"#000000","align":"left"}'
+        ruta_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":120,"font_size":18,"color":"#000000","align":"left"}'
+        operador_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":240,"font_size":16,"color":"#000000","align":"left"}'
+        es_predeterminada:
+          type: boolean
+          example: false
+    TicketPlantillaResourceResponse:
+      type: object
+      required:
+        - ticket_plantilla
+      properties:
+        ticket_plantilla:
+          $ref: '#/components/schemas/TicketPlantilla'
+    TicketPlantillaMutationResponse:
+      type: object
+      required:
+        - message
+        - ticket_plantilla
+      properties:
+        message:
+          type: string
+          example: Plantilla de ticket actualizada correctamente.
+        ticket_plantilla:
+          $ref: '#/components/schemas/TicketPlantilla'
+    TicketPlantillaPaginatedResponse:
+      type: object
+      required:
+        - ticket_plantillas
+        - pagination
+      properties:
+        ticket_plantillas:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketPlantilla'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    TicketPlantilla:
+      type: object
+      required:
+        - id
+        - nombre
+        - image_path
+        - estado
+        - es_predeterminada
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: Ticket general 1000x500
+        image_path:
+          type: string
+          example: ticket-plantillas/ticket-general.png
+        qr_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaLocation'
+            - type: 'null'
+        precio_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        fecha_hora_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        asiento_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        codigo_ticket_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        ruta_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        operador_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        es_predeterminada:
+          type: boolean
+          example: true
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T19:00:00.000000Z'
+    TicketPlantillaLocation:
+      type: object
+      additionalProperties: true
+      properties:
+        x:
+          type: integer
+          example: 650
+        y:
+          type: integer
+          example: 40
+        width:
+          type: integer
+          example: 120
+        height:
+          type: integer
+          example: 120
+    TicketPlantillaTextLocation:
+      type: object
+      additionalProperties: true
+      properties:
+        x:
+          type: integer
+          example: 80
+        y:
+          type: integer
+          example: 150
+        font_size:
+          type: integer
+          example: 18
+        color:
+          type: string
+          example: '#000000'
+        align:
+          type: string
+          example: left
     User:
       type: object
       required:

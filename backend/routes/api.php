@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\AdminHorarioController;
 use App\Http\Controllers\Api\AdminOperadorController;
 use App\Http\Controllers\Api\AdminRutaController;
+use App\Http\Controllers\Api\AdminTicketPlantillaController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BusController;
 use App\Http\Controllers\Api\OperadorController;
@@ -68,6 +69,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::put('/rutas/{ruta}', [AdminRutaController::class, 'update']);
             Route::patch('/rutas/{ruta}/toggle-status', [AdminRutaController::class, 'toggleStatus']);
             Route::delete('/rutas/{ruta}', [AdminRutaController::class, 'destroy']);
+
+            Route::get('/ticket-plantillas', [AdminTicketPlantillaController::class, 'index']);
+            Route::post('/ticket-plantillas', [AdminTicketPlantillaController::class, 'store']);
+            Route::get('/ticket-plantillas/{ticketPlantilla}', [AdminTicketPlantillaController::class, 'show']);
+            Route::put('/ticket-plantillas/{ticketPlantilla}', [AdminTicketPlantillaController::class, 'update']);
+            Route::delete('/ticket-plantillas/{ticketPlantilla}', [AdminTicketPlantillaController::class, 'destroy']);
+            Route::patch('/ticket-plantillas/{ticketPlantilla}/toggle-status', [AdminTicketPlantillaController::class, 'toggleStatus']);
+            Route::patch('/ticket-plantillas/{ticketPlantilla}/set-default', [AdminTicketPlantillaController::class, 'setDefault']);
 
             Route::get('/horarios/rutas', [AdminHorarioController::class, 'rutas']);
             Route::get('/horarios/rutas/{ruta}', [AdminHorarioController::class, 'diasPorRuta']);
