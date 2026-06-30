@@ -79,4 +79,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Ticket::class, 'vendedor_id');
     }
+
+    public function validacionesRealizadas(): HasMany
+    {
+        return $this->hasMany(Validacion::class, 'validador_id');
+    }
 }

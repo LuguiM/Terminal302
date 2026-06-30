@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\BusController;
 use App\Http\Controllers\Api\OperadorController;
 use App\Http\Controllers\Api\OperadorHorarioController;
 use App\Http\Controllers\Api\OperadorRutaController;
+use App\Http\Controllers\Api\ValidadorTicketController;
+use App\Http\Controllers\Api\ValidadorValidacionController;
 use App\Http\Controllers\Api\VendedorTicketController;
 use App\Http\Controllers\Api\VendedorVentaHorarioController;
 use Illuminate\Support\Facades\Route;
@@ -51,6 +53,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::patch('/ventas-horarios/{ventaHorario}/cerrar', [VendedorVentaHorarioController::class, 'cerrar']);
             Route::get('/tickets', [VendedorTicketController::class, 'index']);
             Route::post('/tickets', [VendedorTicketController::class, 'store']);
+        });
+
+    Route::middleware(['password.changed', 'role:validador'])
+        ->prefix('validador')
+        ->group(function (): void {
+            Route::post('/tickets/validar', [ValidadorTicketController::class, 'validar']);
+            Route::get('/validaciones', [ValidadorValidacionController::class, 'index']);
         });
 
     Route::middleware(['password.changed', 'role:administrador'])

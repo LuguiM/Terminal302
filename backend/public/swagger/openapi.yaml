@@ -25,6 +25,8 @@ tags:
     description: Soporte operativo para consulta y cierre de ciclos de venta.
   - name: Tickets
     description: Venta y listado de tickets emitidos por vendedores.
+  - name: Validaciones
+    description: Validacion interna autenticada de tickets para abordaje.
   - name: Plantillas de ticket
     description: Gestion administrativa de plantillas visuales para tickets.
   - name: Rutas
@@ -838,6 +840,97 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
+  /validador/tickets/validar:
+    post:
+      tags:
+        - Validaciones
+      summary: Validar ticket internamente
+      description: Valida un ticket por codigo, registra auditoria y cambia su estado a validado.
+      operationId: validadorValidarTicket
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidarTicketRequest'
+            example:
+              codigo_ticket: TKT-20260630-ABCD123456
+              observacion: Abordaje confirmado
+      responses:
+        '200':
+          description: Ticket validado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidacionTicketResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: El ticket pertenece a otro operador o el usuario no tiene permisos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El ticket ya fue validado o esta cancelado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion o ticket no emitido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta un estado requerido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /validador/validaciones:
+    get:
+      tags:
+        - Validaciones
+      summary: Listar validaciones realizadas
+      description: Devuelve validaciones paginadas realizadas por el validador autenticado.
+      operationId: validadorListValidaciones
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: ticket_id
+          schema:
+            type: integer
+        - in: query
+          name: fecha_validacion
+          schema:
+            type: string
+            format: date
+          example: '2026-06-30'
+      responses:
+        '200':
+          description: Lista paginada de validaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidacionPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /admin/horarios/rutas:
     get:
       tags:
@@ -2553,6 +2646,128 @@ components:
             - 'null'
           format: date-time
           example: '2026-06-25T19:00:00.000000Z'
+    ValidarTicketRequest:
+      type: object
+      required:
+        - codigo_ticket
+      properties:
+        codigo_ticket:
+          type: string
+          maxLength: 255
+          example: TKT-20260630-ABCD123456
+        observacion:
+          type:
+            - string
+            - 'null'
+          maxLength: 1000
+          example: Abordaje confirmado
+    ValidacionTicketResponse:
+      type: object
+      required:
+        - message
+        - ticket
+        - validacion
+      properties:
+        message:
+          type: string
+          example: Ticket validado correctamente.
+        ticket:
+          $ref: '#/components/schemas/Ticket'
+        validacion:
+          $ref: '#/components/schemas/Validacion'
+    ValidacionPaginatedResponse:
+      type: object
+      required:
+        - validaciones
+        - pagination
+      properties:
+        validaciones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Validacion'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    Validacion:
+      type: object
+      required:
+        - id
+        - fecha_validacion
+        - resultado
+      properties:
+        id:
+          type: integer
+          example: 1
+        ticket:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 10
+                codigo_ticket:
+                  type: string
+                  example: TKT-20260630-ABCD123456
+                estado:
+                  $ref: '#/components/schemas/CatalogItem'
+            - type: 'null'
+        validador:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 5
+                name:
+                  type: string
+                  example: Validador Terminal
+                email:
+                  type: string
+                  example: validador@example.test
+            - type: 'null'
+        fecha_validacion:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T15:15:00.000000Z'
+        resultado:
+          type: string
+          example: valido
+        observacion:
+          type:
+            - string
+            - 'null'
+          example: Abordaje confirmado
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T15:15:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T15:15:00.000000Z'
     TicketStoreRequest:
       type: object
       required:
