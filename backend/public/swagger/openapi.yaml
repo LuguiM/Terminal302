@@ -23,6 +23,8 @@ tags:
     description: Gestion administrativa y consulta de horarios de salida.
   - name: Ventas de horarios
     description: Soporte operativo para consulta y cierre de ciclos de venta.
+  - name: Tickets
+    description: Venta y listado de tickets emitidos por vendedores.
   - name: Plantillas de ticket
     description: Gestion administrativa de plantillas visuales para tickets.
   - name: Rutas
@@ -734,6 +736,108 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
+  /vendedor/tickets:
+    get:
+      tags:
+        - Tickets
+      summary: Listar tickets vendidos
+      description: Devuelve tickets paginados vendidos por el vendedor autenticado.
+      operationId: vendedorListTickets
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: venta_horario_id
+          schema:
+            type: integer
+        - in: query
+          name: estado_id
+          schema:
+            type: integer
+        - in: query
+          name: codigo_ticket
+          schema:
+            type: string
+        - in: query
+          name: tipo_envio_id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista paginada de tickets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Tickets
+      summary: Vender tickets
+      description: Genera tickets sobre una venta_horario activa y actualiza contadores de venta.
+      operationId: vendedorCreateTickets
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketStoreRequest'
+            examples:
+              impreso:
+                value:
+                  venta_horario_id: 12
+                  cantidad: 2
+                  tipo_envio_id: 1
+              digital:
+                value:
+                  venta_horario_id: 12
+                  cantidad: 3
+                  tipo_envio_id: 2
+                  correo_destino: cliente@email.com
+                  telefono_destino: '77777777'
+      responses:
+        '201':
+          description: Tickets generados correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketSaleResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Venta cerrada o capacidad alcanzada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion o regla de negocio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta un estado requerido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
   /admin/horarios/rutas:
     get:
       tags:
@@ -2449,6 +2553,255 @@ components:
             - 'null'
           format: date-time
           example: '2026-06-25T19:00:00.000000Z'
+    TicketStoreRequest:
+      type: object
+      required:
+        - venta_horario_id
+        - cantidad
+        - tipo_envio_id
+      properties:
+        venta_horario_id:
+          type: integer
+          example: 12
+        cantidad:
+          type: integer
+          minimum: 1
+          example: 2
+        tipo_envio_id:
+          type: integer
+          example: 1
+        correo_destino:
+          type:
+            - string
+            - 'null'
+          format: email
+          description: Obligatorio cuando el tipo_envio asociado es digital.
+          example: cliente@email.com
+        telefono_destino:
+          type:
+            - string
+            - 'null'
+          example: '77777777'
+    TicketSaleResponse:
+      type: object
+      required:
+        - message
+        - tipo_envio
+        - venta_horario
+        - tickets
+        - resumen
+      properties:
+        message:
+          type: string
+          example: Tickets generados correctamente.
+        tipo_envio:
+          $ref: '#/components/schemas/CatalogItem'
+        venta_horario:
+          $ref: '#/components/schemas/VentaHorario'
+        tickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
+        resumen:
+          type: object
+          properties:
+            cantidad_solicitada:
+              type: integer
+              example: 2
+            cantidad_generada:
+              type: integer
+              example: 2
+            tickets_normales:
+              type: integer
+              example: 2
+            tickets_sobreventa:
+              type: integer
+              example: 0
+            total_tickets_vendidos:
+              type: integer
+              example: 12
+            total_tickets_sobreventa:
+              type: integer
+              example: 0
+            venta_cerrada:
+              type: boolean
+              example: false
+    TicketPaginatedResponse:
+      type: object
+      required:
+        - tickets
+        - pagination
+      properties:
+        tickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    Ticket:
+      type: object
+      required:
+        - id
+        - codigo_ticket
+        - venta_horario_id
+        - es_sobreventa
+        - tipo_envio_id
+        - tipo_envio
+        - estado
+        - ticket_plantilla_id
+      properties:
+        id:
+          type: integer
+          example: 1
+        codigo_ticket:
+          type: string
+          example: TKT-20260630-ABCD123456
+        venta_horario_id:
+          type: integer
+          example: 12
+        vendedor:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 4
+                name:
+                  type: string
+                  example: Vendedor Terminal
+                email:
+                  type: string
+                  example: vendedor@example.test
+            - type: 'null'
+        correo_destino:
+          type:
+            - string
+            - 'null'
+          example: cliente@email.com
+        telefono_destino:
+          type:
+            - string
+            - 'null'
+          example: '77777777'
+        numero_asiento:
+          type:
+            - integer
+            - 'null'
+          example: null
+        es_sobreventa:
+          type: boolean
+          example: false
+        tipo_envio_id:
+          type: integer
+          example: 1
+        tipo_envio:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                nombre:
+                  type: string
+                  example: impreso
+                descripcion:
+                  type:
+                    - string
+                    - 'null'
+                  example: Entrega impresa del ticket.
+            - type: 'null'
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        qr_path:
+          type:
+            - string
+            - 'null'
+          example: null
+        ticket_image_path:
+          type:
+            - string
+            - 'null'
+          example: null
+        image_url:
+          type:
+            - string
+            - 'null'
+          example: null
+        print_url:
+          type:
+            - string
+            - 'null'
+          example: null
+        ticket_plantilla_id:
+          type:
+            - integer
+            - 'null'
+          example: 1
+        ticket_plantilla:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                nombre:
+                  type: string
+                  example: Ticket general 1000x500
+                image_path:
+                  type: string
+                  example: ticket-plantillas/default.png
+            - type: 'null'
+        venta_horario:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 12
+                fecha_operacion:
+                  type: string
+                  format: date
+                  example: '2026-06-30'
+                venta_cerrada:
+                  type: boolean
+                  example: false
+                total_tickets_vendidos:
+                  type: integer
+                  example: 10
+                total_tickets_sobreventa:
+                  type: integer
+                  example: 0
+            - type: 'null'
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T19:00:00.000000Z'
     CerrarVentaHorarioRequest:
       type: object
       properties:

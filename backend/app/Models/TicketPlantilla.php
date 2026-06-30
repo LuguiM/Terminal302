@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TicketPlantilla extends Model
 {
@@ -43,5 +44,10 @@ class TicketPlantilla extends Model
     public function estado(): BelongsTo
     {
         return $this->belongsTo(Estado::class);
+    }
+
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
     }
 }

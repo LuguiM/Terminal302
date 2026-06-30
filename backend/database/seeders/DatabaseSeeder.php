@@ -45,6 +45,8 @@ class DatabaseSeeder extends Seeder
         collect(['bus', 'microbus', 'coaster'])
             ->each(fn (string $nombre) => TipoBus::query()->firstOrCreate(['nombre' => $nombre]));
 
+        $this->call(TipoEnvioSeeder::class);
+
         collect([
             ['nombre' => 'Lunes', 'orden' => 1],
             ['nombre' => 'Martes', 'orden' => 2],

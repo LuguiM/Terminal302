@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VentaHorario extends Model
 {
@@ -45,5 +46,10 @@ class VentaHorario extends Model
     public function cerradaPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cerrada_por');
+    }
+
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
     }
 }

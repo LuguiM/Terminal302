@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\BusController;
 use App\Http\Controllers\Api\OperadorController;
 use App\Http\Controllers\Api\OperadorHorarioController;
 use App\Http\Controllers\Api\OperadorRutaController;
+use App\Http\Controllers\Api\VendedorTicketController;
 use App\Http\Controllers\Api\VendedorVentaHorarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -48,6 +49,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/rutas-disponibles', [VendedorVentaHorarioController::class, 'rutasDisponibles']);
             Route::get('/rutas/{ruta}/horarios-disponibles', [VendedorVentaHorarioController::class, 'horariosDisponiblesPorRuta']);
             Route::patch('/ventas-horarios/{ventaHorario}/cerrar', [VendedorVentaHorarioController::class, 'cerrar']);
+            Route::get('/tickets', [VendedorTicketController::class, 'index']);
+            Route::post('/tickets', [VendedorTicketController::class, 'store']);
         });
 
     Route::middleware(['password.changed', 'role:administrador'])

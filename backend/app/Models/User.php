@@ -74,4 +74,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(VentaHorario::class, 'cerrada_por');
     }
+
+    public function ticketsVendidos(): HasMany
+    {
+        return $this->hasMany(Ticket::class, 'vendedor_id');
+    }
 }

@@ -72,4 +72,14 @@ class Estado extends Model
     {
         return $this->hasMany(TicketPlantilla::class);
     }
+
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
+    public function tipoEnvios(): HasMany
+    {
+        return $this->hasMany(TipoEnvio::class);
+    }
 }
