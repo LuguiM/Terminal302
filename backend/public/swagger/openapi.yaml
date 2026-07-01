@@ -31,7 +31,110 @@ tags:
     description: Gestion administrativa de plantillas visuales para tickets.
   - name: Rutas
     description: Catalogo administrativo de rutas de transporte.
+  - name: Consultas publicas
+    description: Endpoints sin autenticacion para rutas, horarios y consulta publica de tickets.
 paths:
+  /public/rutas:
+    get:
+      tags:
+        - Consultas publicas
+      summary: Listar rutas publicas
+      description: Devuelve rutas activas con al menos un horario activo.
+      operationId: publicListRutas
+      security: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista paginada de rutas publicas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicRutaPaginatedResponse'
+        '500':
+          description: Falta un estado requerido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /public/rutas/{ruta}/horarios:
+    get:
+      tags:
+        - Consultas publicas
+      summary: Listar horarios publicos por ruta
+      description: Devuelve horarios activos de una ruta activa, opcionalmente filtrados por dia.
+      operationId: publicListHorariosPorRuta
+      security: []
+      parameters:
+        - in: path
+          name: ruta
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: dia_id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Horarios activos de la ruta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicHorarioRutaResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Ruta inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '500':
+          description: Falta un estado requerido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /public/tickets/{codigo_ticket}:
+    get:
+      tags:
+        - Consultas publicas
+      summary: Consultar ticket publicamente
+      description: Devuelve informacion publica limitada de un ticket sin validar ni modificar datos.
+      operationId: publicShowTicketByCode
+      security: []
+      parameters:
+        - in: path
+          name: codigo_ticket
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Informacion publica del ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicTicketResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: El ticket no tiene relaciones publicas necesarias.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
   /login:
     post:
       tags:
@@ -3870,6 +3973,215 @@ components:
             - string
             - 'null'
           example: administrador
+    PublicRutaPaginatedResponse:
+      type: object
+      required:
+        - rutas
+        - pagination
+      properties:
+        rutas:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicRuta'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 4
+            last_page:
+              type: integer
+              example: 1
+    PublicHorarioRutaResponse:
+      type: object
+      required:
+        - ruta
+        - horarios
+      properties:
+        ruta:
+          $ref: '#/components/schemas/PublicRuta'
+        horarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicHorario'
+    PublicTicketResponse:
+      type: object
+      required:
+        - ticket
+      properties:
+        ticket:
+          $ref: '#/components/schemas/PublicTicket'
+    PublicRuta:
+      type: object
+      required:
+        - id
+        - ruta
+        - denominacion
+        - tarifa
+      properties:
+        id:
+          type: integer
+          example: 1
+        ruta:
+          type: string
+          example: '302'
+        denominacion:
+          type: string
+          example: Usulutan - San Salvador
+        tarifa:
+          type:
+            - string
+            - number
+          example: '1.50'
+    PublicHorario:
+      type: object
+      properties:
+        horario_id:
+          type: integer
+          example: 10
+        dia:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 1
+            nombre:
+              type:
+                - string
+                - 'null'
+              example: Lunes
+            orden:
+              type:
+                - integer
+                - 'null'
+              example: 1
+        hora_salida:
+          type: string
+          example: '08:00'
+        operador:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 3
+            nombre:
+              type:
+                - string
+                - 'null'
+              example: Operador Demo
+        bus:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 5
+            placa:
+              type:
+                - string
+                - 'null'
+              example: AB12345
+            marca:
+              type:
+                - string
+                - 'null'
+              example: Mercedes
+            nombre_unidad:
+              type:
+                - string
+                - 'null'
+              example: Unidad AB12345
+        tarifa:
+          type:
+            - string
+            - number
+            - 'null'
+          example: '1.50'
+    PublicTicket:
+      type: object
+      properties:
+        codigo_ticket:
+          type: string
+          example: TKT-20260630-ABCD123456
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        ruta:
+          type:
+            - string
+            - 'null'
+          example: '302'
+        denominacion:
+          type:
+            - string
+            - 'null'
+          example: Usulutan - San Salvador
+        operador:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 3
+            nombre:
+              type:
+                - string
+                - 'null'
+              example: Operador Demo
+        dia:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 1
+            nombre:
+              type:
+                - string
+                - 'null'
+              example: Lunes
+            orden:
+              type:
+                - integer
+                - 'null'
+              example: 1
+        hora_salida:
+          type: string
+          example: '08:00'
+        fecha_operacion:
+          type:
+            - string
+            - 'null'
+          format: date
+          example: '2026-06-30'
+        es_sobreventa:
+          type: boolean
+          example: false
+        tipo_envio:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 1
+            nombre:
+              type:
+                - string
+                - 'null'
+              example: impreso
     MessageResponse:
       type: object
       required:

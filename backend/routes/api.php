@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\BusController;
 use App\Http\Controllers\Api\OperadorController;
 use App\Http\Controllers\Api\OperadorHorarioController;
 use App\Http\Controllers\Api\OperadorRutaController;
+use App\Http\Controllers\Api\PublicRutaController;
+use App\Http\Controllers\Api\PublicTicketController;
 use App\Http\Controllers\Api\ValidadorTicketController;
 use App\Http\Controllers\Api\ValidadorValidacionController;
 use App\Http\Controllers\Api\VendedorTicketController;
@@ -17,6 +19,12 @@ use App\Http\Controllers\Api\VendedorVentaHorarioController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
+
+Route::prefix('public')->group(function (): void {
+    Route::get('/rutas', [PublicRutaController::class, 'index']);
+    Route::get('/rutas/{ruta}/horarios', [PublicRutaController::class, 'horariosPorRuta']);
+    Route::get('/tickets/{codigoTicket}', [PublicTicketController::class, 'showByCode']);
+});
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout']);
