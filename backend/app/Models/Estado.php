@@ -87,4 +87,9 @@ class Estado extends Model
     {
         return $this->hasMany(ProcesamientoEstado::class);
     }
+
+    public function menuRutas(): HasMany
+    {
+        return $this->hasMany(MenuRuta::class);
+    }
 }

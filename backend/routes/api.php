@@ -2,11 +2,13 @@
 
 use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\AdminHorarioController;
+use App\Http\Controllers\Api\AdminMenuRutaController;
 use App\Http\Controllers\Api\AdminOperadorController;
 use App\Http\Controllers\Api\AdminRutaController;
 use App\Http\Controllers\Api\AdminTicketPlantillaController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BusController;
+use App\Http\Controllers\Api\MeMenuRutaController;
 use App\Http\Controllers\Api\OperadorController;
 use App\Http\Controllers\Api\OperadorHorarioController;
 use App\Http\Controllers\Api\OperadorRutaController;
@@ -29,6 +31,7 @@ Route::prefix('public')->group(function (): void {
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
+    Route::get('/me/menu-rutas', [MeMenuRutaController::class, 'index']);
     Route::post('/change-initial-password', [AuthController::class, 'changeInitialPassword']);
 
     Route::middleware(['password.changed', 'role:empresario', 'operator.active'])
@@ -92,6 +95,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::put('/rutas/{ruta}', [AdminRutaController::class, 'update']);
             Route::patch('/rutas/{ruta}/toggle-status', [AdminRutaController::class, 'toggleStatus']);
             Route::delete('/rutas/{ruta}', [AdminRutaController::class, 'destroy']);
+
+            Route::get('/menu-rutas', [AdminMenuRutaController::class, 'index']);
+            Route::post('/menu-rutas', [AdminMenuRutaController::class, 'store']);
+            Route::put('/menu-rutas/{menuRuta}', [AdminMenuRutaController::class, 'update']);
+            Route::patch('/menu-rutas/{menuRuta}/toggle-status', [AdminMenuRutaController::class, 'toggleStatus']);
 
             Route::get('/ticket-plantillas', [AdminTicketPlantillaController::class, 'index']);
             Route::post('/ticket-plantillas', [AdminTicketPlantillaController::class, 'store']);
