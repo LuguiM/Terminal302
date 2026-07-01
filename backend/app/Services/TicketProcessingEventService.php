@@ -63,7 +63,7 @@ class TicketProcessingEventService
             ],
             'operador' => [
                 'id' => $operador?->id,
-                'nombre' => $operador?->nombre,
+                'nombre_comercial' => $operador?->nombre_comercial,
             ],
             'bus' => [
                 'id' => $bus?->id,

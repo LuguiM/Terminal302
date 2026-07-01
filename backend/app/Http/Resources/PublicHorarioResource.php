@@ -20,7 +20,14 @@ class PublicHorarioResource extends JsonResource
                 'orden' => $this->dia?->orden,
             ],
             'hora_salida' => substr((string) $this->hora_salida, 0, 5),
-            'operador' => $this->operador?->nombre,
+            'operador' => [
+                'id' => $this->operador?->id,
+                'nombre_comercial' => $this->operador?->nombre_comercial,
+            ],
+            'bus' => [
+                'id' => $this->bus?->id,
+                'placa' => $this->bus?->placa,
+            ],
             'tarifa' => $this->ruta?->tarifa,
         ];
     }

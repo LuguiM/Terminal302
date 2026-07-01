@@ -307,21 +307,20 @@ paths:
               empresa:
                 value:
                   tipo_operador_id: 1
-                  nombre: Transportes Central
+                  nombre_comercial: Transportes Central
                   razon_social: Transportes Central S.A.
                   representante_legal: Maria Lopez
-                  documento: null
+                  nit: 0614-290695-101-3
                   telefono: 2222-3333
-                  correo: contacto@central.test
+                  correo_administrativo: contacto@central.test
                   direccion: Terminal central
               persona:
                 value:
                   tipo_operador_id: 2
-                  nombre: Juan Perez
-                  documento: null
+                  nombre_comercial: Juan Perez
+                  dui: 12345678-9
                   telefono: 7777-8888
-                  correo: juan@example.test
-                  direccion: San Salvador
+                  telefono_opcional: 2222-3333
       responses:
         '201':
           description: Operador registrado correctamente.
@@ -2502,15 +2501,12 @@ components:
       type: object
       required:
         - tipo_operador_id
-        - nombre
-        - telefono
-        - correo
-        - direccion
+        - nombre_comercial
       properties:
         tipo_operador_id:
           type: integer
           example: 1
-        nombre:
+        nombre_comercial:
           type: string
           maxLength: 255
           example: Transportes Central
@@ -2528,25 +2524,47 @@ components:
           maxLength: 255
           description: Requerido cuando el tipo de operador es empresa.
           example: Maria Lopez
-        documento:
+        telefono:
+          type:
+            - string
+            - 'null'
+          maxLength: 50
+          description: Requerido cuando el tipo de operador es persona.
+          example: 2222-3333
+        telefono_opcional:
+          type:
+            - string
+            - 'null'
+          maxLength: 50
+          example: 7777-8888
+        correo_administrativo:
+          type:
+            - string
+            - 'null'
+          format: email
+          maxLength: 255
+          description: Opcional para operadores de tipo empresa.
+          example: contacto@central.test
+        direccion:
           type:
             - string
             - 'null'
           maxLength: 255
-          example: null
-        telefono:
-          type: string
-          maxLength: 50
-          example: 2222-3333
-        correo:
-          type: string
-          format: email
-          maxLength: 255
-          example: contacto@central.test
-        direccion:
-          type: string
-          maxLength: 255
           example: Terminal central
+        nit:
+          type:
+            - string
+            - 'null'
+          pattern: '^\\d{4}-\\d{6}-\\d{3}-\\d$'
+          description: Requerido y unico cuando el tipo de operador es empresa.
+          example: 0614-290695-101-3
+        dui:
+          type:
+            - string
+            - 'null'
+          pattern: '^\\d{8}-\\d$'
+          description: Requerido y unico cuando el tipo de operador es persona.
+          example: 12345678-9
     ToggleOperadorStatusRequest:
       type: object
       properties:
@@ -2610,10 +2628,7 @@ components:
       required:
         - id
         - tipo_operador
-        - nombre
-        - telefono
-        - correo
-        - direccion
+        - nombre_comercial
         - estado
       properties:
         id:
@@ -2636,7 +2651,7 @@ components:
               example: empresario@example.test
         tipo_operador:
           $ref: '#/components/schemas/CatalogItem'
-        nombre:
+        nombre_comercial:
           type: string
           example: Transportes Central
         razon_social:
@@ -2649,21 +2664,37 @@ components:
             - string
             - 'null'
           example: Maria Lopez
-        documento:
+        telefono:
           type:
             - string
             - 'null'
-          example: null
-        telefono:
-          type: string
           example: 2222-3333
-        correo:
-          type: string
+        telefono_opcional:
+          type:
+            - string
+            - 'null'
+          example: 7777-8888
+        correo_administrativo:
+          type:
+            - string
+            - 'null'
           format: email
           example: contacto@central.test
         direccion:
-          type: string
+          type:
+            - string
+            - 'null'
           example: Terminal central
+        nit:
+          type:
+            - string
+            - 'null'
+          example: 0614-290695-101-3
+        dui:
+          type:
+            - string
+            - 'null'
+          example: 12345678-9
         estado:
           $ref: '#/components/schemas/CatalogItem'
         motivo_desactivacion:
@@ -3009,7 +3040,7 @@ components:
             id:
               type: integer
               example: 1
-            nombre:
+            nombre_comercial:
               type: string
               example: Transportes Central
         bus:
@@ -3373,7 +3404,7 @@ components:
                 - integer
                 - 'null'
               example: 1
-            nombre:
+            nombre_comercial:
               type:
                 - string
                 - 'null'
@@ -4252,7 +4283,7 @@ components:
                 - integer
                 - 'null'
               example: 3
-            nombre:
+            nombre_comercial:
               type:
                 - string
                 - 'null'
@@ -4312,7 +4343,7 @@ components:
                 - integer
                 - 'null'
               example: 3
-            nombre:
+            nombre_comercial:
               type:
                 - string
                 - 'null'

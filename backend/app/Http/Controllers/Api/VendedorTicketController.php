@@ -514,7 +514,7 @@ class VendedorTicketController extends Controller
             ],
             'operador' => [
                 'id' => $operador?->id,
-                'nombre' => $operador?->nombre,
+                'nombre_comercial' => $operador?->nombre_comercial,
             ],
             'fecha_operacion' => $ventaHorario?->fecha_operacion?->toDateString(),
             'hora_salida' => $horario?->hora_salida,

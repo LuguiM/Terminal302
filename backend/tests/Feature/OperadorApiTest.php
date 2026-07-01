@@ -36,23 +36,28 @@ class OperadorApiTest extends TestCase
 
         $this->postJson('/api/operador', [
             'tipo_operador_id' => $tipoEmpresa->id,
-            'nombre' => 'Transportes Central',
+            'nombre_comercial' => 'Transportes Central',
             'razon_social' => 'Transportes Central S.A.',
             'representante_legal' => 'Maria Lopez',
-            'documento' => null,
+            'nit' => '0614-290695-101-3',
+            'dui' => '12345678-9',
+            'telefono_opcional' => '7777-8888',
             'telefono' => '2222-3333',
-            'correo' => 'contacto@central.test',
+            'correo_administrativo' => 'contacto@central.test',
             'direccion' => 'Terminal central',
         ])
             ->assertCreated()
             ->assertJsonPath('message', 'Operador registrado correctamente.')
-            ->assertJsonPath('operador.nombre', 'Transportes Central')
+            ->assertJsonPath('operador.nombre_comercial', 'Transportes Central')
             ->assertJsonPath('operador.tipo_operador.nombre', 'empresa')
-            ->assertJsonPath('operador.estado.nombre', 'Activo');
+            ->assertJsonPath('operador.estado.nombre', 'Activo')
+            ->assertJsonPath('operador.nit', '0614-290695-101-3')
+            ->assertJsonPath('operador.dui', null)
+            ->assertJsonPath('operador.telefono_opcional', null);
 
         $this->getJson('/api/operador/me')
             ->assertOk()
-            ->assertJsonPath('data.nombre', 'Transportes Central')
+            ->assertJsonPath('data.nombre_comercial', 'Transportes Central')
             ->assertJsonPath('data.razon_social', 'Transportes Central S.A.');
     }
 
@@ -65,16 +70,25 @@ class OperadorApiTest extends TestCase
 
         $this->postJson('/api/operador', [
             'tipo_operador_id' => $tipoPersona->id,
-            'nombre' => 'Juan Perez',
+            'nombre_comercial' => 'Juan Perez',
+            'dui' => '12345678-9',
             'telefono' => '7777-8888',
-            'correo' => 'juan@example.test',
+            'telefono_opcional' => '2222-3333',
+            'razon_social' => 'No debe guardarse',
+            'representante_legal' => 'No debe guardarse',
+            'nit' => '0614-290695-101-3',
+            'correo_administrativo' => 'juan@example.test',
             'direccion' => 'Barrio El Centro',
         ])
             ->assertCreated()
-            ->assertJsonPath('operador.nombre', 'Juan Perez')
+            ->assertJsonPath('operador.nombre_comercial', 'Juan Perez')
             ->assertJsonPath('operador.tipo_operador.nombre', 'persona')
+            ->assertJsonPath('operador.dui', '12345678-9')
             ->assertJsonPath('operador.razon_social', null)
-            ->assertJsonPath('operador.representante_legal', null);
+            ->assertJsonPath('operador.representante_legal', null)
+            ->assertJsonPath('operador.nit', null)
+            ->assertJsonPath('operador.correo_administrativo', null)
+            ->assertJsonPath('operador.direccion', null);
     }
 
     public function test_empresario_cannot_register_second_operator(): void
@@ -87,10 +101,9 @@ class OperadorApiTest extends TestCase
 
         $this->postJson('/api/operador', [
             'tipo_operador_id' => $tipoPersona->id,
-            'nombre' => 'Otro operador',
+            'nombre_comercial' => 'Otro operador',
+            'dui' => '12345678-9',
             'telefono' => '7777-8888',
-            'correo' => 'otro@example.test',
-            'direccion' => 'San Salvador',
         ])
             ->assertStatus(409)
             ->assertJsonPath('message', 'El empresario ya tiene un operador registrado.');
@@ -118,10 +131,9 @@ class OperadorApiTest extends TestCase
 
         $this->putJson("/api/operador/{$otherOperador->id}", [
             'tipo_operador_id' => $tipoPersona->id,
-            'nombre' => 'Intento ajeno',
+            'nombre_comercial' => 'Intento ajeno',
+            'dui' => '12345678-9',
             'telefono' => '7777-8888',
-            'correo' => 'ajeno@example.test',
-            'direccion' => 'San Salvador',
         ])
             ->assertForbidden()
             ->assertJsonPath('message', 'El operador no pertenece al empresario autenticado.');
@@ -138,12 +150,12 @@ class OperadorApiTest extends TestCase
         $this->getJson('/api/admin/operadores')
             ->assertOk()
             ->assertJsonPath('pagination.total', 1)
-            ->assertJsonPath('operadores.0.nombre', $operador->nombre)
+            ->assertJsonPath('operadores.0.nombre_comercial', $operador->nombre_comercial)
             ->assertJsonPath('operadores.0.user.email', $empresario->email);
 
         $this->getJson("/api/admin/operadores/{$operador->id}")
             ->assertOk()
-            ->assertJsonPath('data.nombre', $operador->nombre)
+            ->assertJsonPath('data.nombre_comercial', $operador->nombre_comercial)
             ->assertJsonPath('data.user.email', $empresario->email);
     }
 
@@ -213,6 +225,7 @@ class OperadorApiTest extends TestCase
             'nombre' => 'Empresa incompleta',
             'telefono' => '2222-3333',
             'correo' => 'empresa@example.test',
+            'documento' => '0614-290695-101-3',
             'direccion' => 'San Salvador',
             'estado_id' => Estado::ACTIVO_ID,
             'user_id' => $empresario->id,
@@ -222,10 +235,71 @@ class OperadorApiTest extends TestCase
             ->assertJsonValidationErrors([
                 'razon_social',
                 'representante_legal',
+                'nit',
                 'estado_id',
                 'user_id',
                 'motivo_desactivacion',
+                'nombre',
+                'documento',
+                'correo',
             ]);
+    }
+
+    public function test_operator_requests_validate_document_format_and_uniqueness(): void
+    {
+        $empresario = $this->createUser('empresario', 'empresario@example.test');
+        $tipoPersona = $this->tipoOperador('persona');
+        $tipoEmpresa = $this->tipoOperador('empresa');
+        $this->createOperador($this->createUser('empresario', 'dui-used@example.test'), dui: '12345678-9');
+
+        Sanctum::actingAs($empresario);
+
+        $this->postJson('/api/operador', [
+            'tipo_operador_id' => $tipoPersona->id,
+            'nombre_comercial' => 'Persona sin guion',
+            'dui' => '123456789',
+            'telefono' => '7777-8888',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['dui']);
+
+        $this->postJson('/api/operador', [
+            'tipo_operador_id' => $tipoPersona->id,
+            'nombre_comercial' => 'Persona duplicada',
+            'dui' => '12345678-9',
+            'telefono' => '7777-8888',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['dui']);
+
+        $this->postJson('/api/operador', [
+            'tipo_operador_id' => $tipoEmpresa->id,
+            'nombre_comercial' => 'Empresa sin guiones',
+            'razon_social' => 'Empresa sin guiones S.A.',
+            'representante_legal' => 'Maria Lopez',
+            'nit' => '06142906951013',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['nit']);
+    }
+
+    public function test_operator_update_ignores_current_document_for_unique_validation(): void
+    {
+        $empresario = $this->createUser('empresario', 'empresario@example.test');
+        $operador = $this->createOperador($empresario, dui: '12345678-9');
+        $tipoPersona = $this->tipoOperador('persona');
+
+        Sanctum::actingAs($empresario);
+
+        $this->putJson("/api/operador/{$operador->id}", [
+            'tipo_operador_id' => $tipoPersona->id,
+            'nombre_comercial' => 'Operador actualizado',
+            'dui' => '12345678-9',
+            'telefono' => '7777-8888',
+        ])
+            ->assertOk()
+            ->assertJsonPath('operador.nombre_comercial', 'Operador actualizado')
+            ->assertJsonPath('operador.dui', '12345678-9');
     }
 
     private function createUser(string $roleName, string $email): User
@@ -248,6 +322,7 @@ class OperadorApiTest extends TestCase
         int $estadoId = Estado::ACTIVO_ID,
         string $estadoName = 'Activo',
         ?string $motivoDesactivacion = null,
+        ?string $dui = null,
     ): Operador {
         $tipoPersona = $this->tipoOperador('persona');
         $estado = $this->estado($estadoId, $estadoName);
@@ -255,10 +330,9 @@ class OperadorApiTest extends TestCase
         return Operador::query()->create([
             'user_id' => $user->id,
             'tipo_operador_id' => $tipoPersona->id,
-            'nombre' => 'Operador '.$user->id,
+            'nombre_comercial' => 'Operador '.$user->id,
+            'dui' => $dui ?? sprintf('%08d-%d', $user->id, $user->id % 10),
             'telefono' => '2222-3333',
-            'correo' => 'operador'.$user->id.'@example.test',
-            'direccion' => 'San Salvador',
             'estado_id' => $estado->id,
             'motivo_desactivacion' => $motivoDesactivacion,
         ]);

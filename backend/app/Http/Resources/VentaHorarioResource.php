@@ -41,7 +41,7 @@ class VentaHorarioResource extends JsonResource
                 ],
                 'operador' => [
                     'id' => $this->horario?->operador?->id,
-                    'nombre' => $this->horario?->operador?->nombre,
+                    'nombre_comercial' => $this->horario?->operador?->nombre_comercial,
                 ],
                 'bus' => [
                     'id' => $this->horario?->bus?->id,

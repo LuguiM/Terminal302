@@ -132,9 +132,9 @@ class VendedorVentaHorarioController extends Controller
 
         return response()->json([
             'message' => 'Venta de horario cerrada correctamente.',
-            // 'venta_horario' => new VentaHorarioResource(
-            //     $ventaHorario->fresh(['horario.ruta', 'horario.operador', 'horario.bus', 'estado', 'cerradaPor'])
-            // ),
+            'venta_horario' => new VentaHorarioResource(
+                $ventaHorario->fresh(['horario.ruta', 'horario.operador', 'horario.bus', 'estado', 'cerradaPor'])
+            ),
         ]);
     }
 
@@ -166,7 +166,7 @@ class VendedorVentaHorarioController extends Controller
             ],
             'operador' => [
                 'id' => $horario->operador?->id,
-                'nombre' => $horario->operador?->nombre,
+                'nombre_comercial' => $horario->operador?->nombre_comercial,
             ],
             'bus' => [
                 'id' => $horario->bus?->id,
