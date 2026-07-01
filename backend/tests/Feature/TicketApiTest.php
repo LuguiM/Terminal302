@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
-use App\Mail\TicketsVendidosMail;
 use App\Models\Bus;
 use App\Models\Dia;
 use App\Models\Estado;
 use App\Models\Horario;
 use App\Models\Operador;
 use App\Models\OperadorRuta;
+use App\Models\ProcesamientoEstado;
 use App\Models\Role;
 use App\Models\Ruta;
 use App\Models\Ticket;
@@ -18,10 +18,10 @@ use App\Models\TipoBus;
 use App\Models\TipoOperador;
 use App\Models\User;
 use App\Models\VentaHorario;
-use App\Services\Tickets\WhatsAppTicketDeliveryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -34,6 +34,7 @@ class TicketApiTest extends TestCase
         parent::setUp();
 
         Mail::fake();
+        Storage::fake(config('filesystems.default'));
     }
 
     public function test_vendedor_can_list_only_own_tickets_paginated_with_filters(): void
@@ -69,6 +70,11 @@ class TicketApiTest extends TestCase
                         'image_url',
                         'print_url',
                         'ticket_plantilla_id',
+                        'procesamiento_estado_id',
+                        'procesamiento_estado',
+                        'processing_error',
+                        'processed_at',
+                        'processing_event_path',
                         'ticket_plantilla',
                         'venta_horario',
                         'created_at',
@@ -115,7 +121,10 @@ class TicketApiTest extends TestCase
             ->assertJsonPath('tickets.0.ticket_plantilla_id', $plantilla->id)
             ->assertJsonPath('tickets.0.ticket_image_path', null)
             ->assertJsonPath('tickets.0.image_url', null)
-            ->assertJsonPath('tickets.0.print_url', null);
+            ->assertJsonPath('tickets.0.print_url', null)
+            ->assertJsonPath('tickets.0.procesamiento_estado_id', null)
+            ->assertJsonPath('tickets.0.procesamiento_estado', null)
+            ->assertJsonStructure(['impresion' => ['tickets']]);
 
         $this->assertDatabaseCount('tickets', 2);
         $this->assertDatabaseHas('ventas_horarios', [
@@ -128,20 +137,18 @@ class TicketApiTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_vendedor_can_sell_digital_tickets_and_send_email_prepare_whatsapp(): void
+    public function test_vendedor_can_sell_digital_tickets_and_publish_processing_events(): void
     {
         $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
         $this->createTicketPlantilla();
+        $pending = $this->createProcesamientoEstado(ProcesamientoEstado::PENDING);
+        $this->createProcesamientoEstado(ProcesamientoEstado::FAILED);
         $tipoEnvio = $this->createTipoEnvio(TipoEnvio::DIGITAL);
         $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
 
-        $this->mock(WhatsAppTicketDeliveryService::class, function ($mock): void {
-            $mock->shouldReceive('prepare')->once();
-        });
-
         Sanctum::actingAs($vendedor);
 
-        $this->postJson('/api/vendedor/tickets', [
+        $response = $this->postJson('/api/vendedor/tickets', [
             'venta_horario_id' => $ventaHorario->id,
             'cantidad' => 3,
             'tipo_envio_id' => $tipoEnvio->id,
@@ -150,11 +157,21 @@ class TicketApiTest extends TestCase
         ])
             ->assertCreated()
             ->assertJsonPath('tickets.0.correo_destino', 'cliente@example.test')
-            ->assertJsonPath('tickets.0.telefono_destino', '77777777');
+            ->assertJsonPath('tickets.0.telefono_destino', '77777777')
+            ->assertJsonPath('tickets.0.procesamiento_estado_id', $pending->id)
+            ->assertJsonPath('tickets.0.procesamiento_estado.nombre', ProcesamientoEstado::PENDING)
+            ->assertJsonPath('procesamiento', 'pendiente')
+            ->assertJsonStructure(['event_paths']);
 
-        Mail::assertSent(TicketsVendidosMail::class, function (TicketsVendidosMail $mail): bool {
-            return $mail->hasTo('cliente@example.test') && $mail->tickets->count() === 3;
-        });
+        $ticket = Ticket::query()->firstOrFail();
+        $expectedPath = "ticket-events/pending/{$ticket->codigo_ticket}.json";
+
+        Storage::disk(config('filesystems.default'))->assertExists($expectedPath);
+        $this->assertSame($expectedPath, $ticket->fresh()->processing_event_path);
+        $this->assertSame($expectedPath, $response->json("event_paths.{$ticket->codigo_ticket}"));
+        $this->assertStringContainsString('cliente@example.test', Storage::disk(config('filesystems.default'))->get($expectedPath));
+        $this->assertStringContainsString('77777777', Storage::disk(config('filesystems.default'))->get($expectedPath));
+        Mail::assertNothingSent();
     }
 
     public function test_vendedor_can_sell_overbooking_when_allowed(): void
@@ -189,6 +206,117 @@ class TicketApiTest extends TestCase
             'total_tickets_sobreventa' => 2,
             'venta_cerrada' => false,
         ]);
+    }
+
+    public function test_vendedor_can_list_digital_deliveries_with_filters(): void
+    {
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $otherVendedor = $this->createUser('vendedor', 'other-delivery@example.test');
+        $plantilla = $this->createTicketPlantilla();
+        $digital = $this->createTipoEnvio(TipoEnvio::DIGITAL);
+        $impreso = $this->createTipoEnvio(TipoEnvio::IMPRESO);
+        $pending = $this->createProcesamientoEstado(ProcesamientoEstado::PENDING);
+        $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
+        $digitalTicket = $this->createTicket(
+            $ventaHorario,
+            $vendedor,
+            $plantilla,
+            $digital,
+            'TKT-DIGITAL-001',
+            procesamientoEstado: $pending,
+        );
+        $this->createTicket($ventaHorario, $vendedor, $plantilla, $impreso, 'TKT-PRINT-001');
+        $this->createTicket($ventaHorario, $otherVendedor, $plantilla, $digital, 'TKT-DIGITAL-OTHER', procesamientoEstado: $pending);
+
+        Sanctum::actingAs($vendedor);
+
+        $this->getJson("/api/vendedor/tickets/entregas?procesamiento_estado_id={$pending->id}&venta_horario_id={$ventaHorario->id}&codigo_ticket=TKT-DIGITAL-001&fecha=".$digitalTicket->created_at->toDateString())
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('tickets.0.id', $digitalTicket->id)
+            ->assertJsonPath('tickets.0.procesamiento_estado.nombre', ProcesamientoEstado::PENDING);
+    }
+
+    public function test_vendedor_can_retry_digital_ticket_processing(): void
+    {
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $plantilla = $this->createTicketPlantilla();
+        $digital = $this->createTipoEnvio(TipoEnvio::DIGITAL);
+        $pending = $this->createProcesamientoEstado(ProcesamientoEstado::PENDING);
+        $failed = $this->createProcesamientoEstado(ProcesamientoEstado::FAILED);
+        $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
+        $ticket = $this->createTicket(
+            $ventaHorario,
+            $vendedor,
+            $plantilla,
+            $digital,
+            'TKT-RETRY-001',
+            procesamientoEstado: $failed,
+            processingError: 'Error anterior',
+        );
+
+        Sanctum::actingAs($vendedor);
+
+        $this->postJson("/api/vendedor/tickets/{$ticket->id}/retry-processing")
+            ->assertOk()
+            ->assertJsonPath('message', 'Procesamiento del ticket reintentado correctamente.')
+            ->assertJsonPath('ticket.procesamiento_estado_id', $pending->id)
+            ->assertJsonPath('ticket.procesamiento_estado.nombre', ProcesamientoEstado::PENDING)
+            ->assertJsonPath('ticket.processing_error', null);
+
+        Storage::disk(config('filesystems.default'))->assertExists("ticket-events/pending/{$ticket->codigo_ticket}.json");
+    }
+
+    public function test_retry_processing_rejects_non_digital_or_foreign_tickets(): void
+    {
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $otherVendedor = $this->createUser('vendedor', 'other-retry@example.test');
+        $plantilla = $this->createTicketPlantilla();
+        $impreso = $this->createTipoEnvio(TipoEnvio::IMPRESO);
+        $digital = $this->createTipoEnvio(TipoEnvio::DIGITAL);
+        $failed = $this->createProcesamientoEstado(ProcesamientoEstado::FAILED);
+        $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
+        $printedTicket = $this->createTicket($ventaHorario, $vendedor, $plantilla, $impreso, 'TKT-PRINT-RETRY');
+        $foreignTicket = $this->createTicket($ventaHorario, $otherVendedor, $plantilla, $digital, 'TKT-FOREIGN-RETRY', procesamientoEstado: $failed);
+
+        Sanctum::actingAs($vendedor);
+
+        $this->postJson("/api/vendedor/tickets/{$printedTicket->id}/retry-processing")
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'El ticket no es digital y no requiere reprocesamiento.');
+
+        $this->postJson("/api/vendedor/tickets/{$foreignTicket->id}/retry-processing")
+            ->assertForbidden()
+            ->assertJsonPath('message', 'El ticket no pertenece al vendedor autenticado.');
+    }
+
+    public function test_vendedor_can_get_print_data_without_changing_ticket_status(): void
+    {
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $plantilla = $this->createTicketPlantilla();
+        $digital = $this->createTipoEnvio(TipoEnvio::DIGITAL);
+        $failed = $this->createProcesamientoEstado(ProcesamientoEstado::FAILED);
+        $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
+        $ticket = $this->createTicket(
+            $ventaHorario,
+            $vendedor,
+            $plantilla,
+            $digital,
+            'TKT-PRINT-DATA',
+            ticketImagePath: 'tickets/final/TKT-PRINT-DATA.png',
+            procesamientoEstado: $failed,
+        );
+
+        Sanctum::actingAs($vendedor);
+
+        $this->getJson("/api/vendedor/tickets/{$ticket->id}/print")
+            ->assertOk()
+            ->assertJsonPath('ticket.id', $ticket->id)
+            ->assertJsonPath('ticket.procesamiento_estado.nombre', ProcesamientoEstado::FAILED)
+            ->assertJsonPath('printable_data.codigo_ticket', 'TKT-PRINT-DATA')
+            ->assertJsonPath('image_url', Storage::url('tickets/final/TKT-PRINT-DATA.png'));
+
+        $this->assertSame($failed->id, $ticket->fresh()->procesamiento_estado_id);
     }
 
     public function test_sale_is_rejected_without_partial_tickets_when_quantity_exceeds_capacity_and_overbooking_is_disabled(): void
@@ -413,6 +541,9 @@ class TicketApiTest extends TestCase
         TicketPlantilla $plantilla,
         TipoEnvio $tipoEnvio,
         string $codigo,
+        ?string $ticketImagePath = null,
+        ?ProcesamientoEstado $procesamientoEstado = null,
+        ?string $processingError = null,
     ): Ticket {
         return Ticket::query()->create([
             'venta_horario_id' => $ventaHorario->id,
@@ -426,7 +557,11 @@ class TicketApiTest extends TestCase
             'estado_id' => Estado::EMITIDO_ID,
             'qr_path' => null,
             'ticket_plantilla_id' => $plantilla->id,
-            'ticket_image_path' => null,
+            'ticket_image_path' => $ticketImagePath,
+            'procesamiento_estado_id' => $procesamientoEstado?->id,
+            'processing_error' => $processingError,
+            'processed_at' => null,
+            'processing_event_path' => $procesamientoEstado ? "ticket-events/pending/{$codigo}.json" : null,
         ]);
     }
 
@@ -552,6 +687,22 @@ class TicketApiTest extends TestCase
         $estado = $this->estado($estadoId, $estadoName);
 
         return TipoEnvio::query()->updateOrCreate(
+            ['nombre' => $nombre],
+            [
+                'descripcion' => ucfirst($nombre),
+                'estado_id' => $estado->id,
+            ],
+        );
+    }
+
+    private function createProcesamientoEstado(
+        string $nombre,
+        int $estadoId = Estado::ACTIVO_ID,
+        string $estadoName = 'Activo',
+    ): ProcesamientoEstado {
+        $estado = $this->estado($estadoId, $estadoName);
+
+        return ProcesamientoEstado::query()->updateOrCreate(
             ['nombre' => $nombre],
             [
                 'descripcion' => ucfirst($nombre),

@@ -21,6 +21,10 @@ class Ticket extends Model
         'qr_path',
         'ticket_plantilla_id',
         'ticket_image_path',
+        'procesamiento_estado_id',
+        'processing_error',
+        'processed_at',
+        'processing_event_path',
     ];
 
     /**
@@ -31,6 +35,7 @@ class Ticket extends Model
         return [
             'numero_asiento' => 'integer',
             'es_sobreventa' => 'boolean',
+            'processed_at' => 'datetime',
         ];
     }
 
@@ -57,6 +62,11 @@ class Ticket extends Model
     public function ticketPlantilla(): BelongsTo
     {
         return $this->belongsTo(TicketPlantilla::class);
+    }
+
+    public function procesamientoEstado(): BelongsTo
+    {
+        return $this->belongsTo(ProcesamientoEstado::class);
     }
 
     public function validacion(): HasOne

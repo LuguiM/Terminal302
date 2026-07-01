@@ -6,20 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Ticket\StoreTicketRequest;
 use App\Http\Resources\TicketResource;
 use App\Http\Resources\VentaHorarioResource;
-use App\Mail\TicketsVendidosMail;
 use App\Models\Estado;
+use App\Models\ProcesamientoEstado;
 use App\Models\Ticket;
 use App\Models\TicketPlantilla;
 use App\Models\TipoEnvio;
 use App\Models\VentaHorario;
-use App\Services\Tickets\WhatsAppTicketDeliveryService;
+use App\Services\TicketProcessingEventService;
 use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Throwable;
 
 class VendedorTicketController extends Controller
 {
@@ -28,14 +30,24 @@ class VendedorTicketController extends Controller
     public function index(Request $request): JsonResponse
     {
         $perPage = min(max($request->integer('per_page', 15), 1), 50);
+        $filterResponse = $this->validateProcessingStateFilter($request);
+
+        if ($filterResponse) {
+            return $filterResponse;
+        }
 
         $tickets = Ticket::query()
-            ->with(['estado', 'tipoEnvio', 'ticketPlantilla', 'ventaHorario', 'vendedor'])
+            ->with(['estado', 'tipoEnvio', 'procesamientoEstado', 'ticketPlantilla', 'ventaHorario', 'vendedor'])
             ->where('vendedor_id', $request->user()?->id)
             ->when($request->filled('venta_horario_id'), fn ($query) => $query->where('venta_horario_id', $request->integer('venta_horario_id')))
             ->when($request->filled('estado_id'), fn ($query) => $query->where('estado_id', $request->integer('estado_id')))
             ->when($request->filled('codigo_ticket'), fn ($query) => $query->where('codigo_ticket', $request->string('codigo_ticket')->toString()))
             ->when($request->filled('tipo_envio_id'), fn ($query) => $query->where('tipo_envio_id', $request->integer('tipo_envio_id')))
+            ->when($request->filled('procesamiento_estado_id'), fn ($query) => $query->where('procesamiento_estado_id', $request->integer('procesamiento_estado_id')))
+            ->when($request->filled('processing_status_name'), fn ($query) => $query->whereHas(
+                'procesamientoEstado',
+                fn ($processingQuery) => $processingQuery->whereRaw('LOWER(nombre) = ?', [mb_strtolower($request->string('processing_status_name')->toString())]),
+            ))
             ->orderByDesc('id')
             ->paginate($perPage);
 
@@ -44,14 +56,13 @@ class VendedorTicketController extends Controller
 
     public function store(
         StoreTicketRequest $request,
-        WhatsAppTicketDeliveryService $whatsAppTicketDeliveryService,
+        TicketProcessingEventService $ticketProcessingEventService,
     ): JsonResponse {
         $validated = $request->validated();
         $vendedor = $request->user();
         $generatedTickets = collect();
-        $mailVentaHorario = null;
 
-        $result = DB::transaction(function () use ($validated, $vendedor, &$generatedTickets, &$mailVentaHorario): JsonResponse|array {
+        $result = DB::transaction(function () use ($validated, $vendedor, &$generatedTickets): JsonResponse|array {
             $activeStatus = Estado::activo();
 
             if (! $activeStatus) {
@@ -84,6 +95,22 @@ class VendedorTicketController extends Controller
                 return response()->json([
                     'message' => 'No existe una plantilla de ticket predeterminada activa.',
                 ], 422);
+            }
+
+            $pendingProcessingStatus = null;
+            $failedProcessingStatus = null;
+
+            if ($tipoEnvio->isDigital()) {
+                $pendingProcessingStatus = $this->processingStatus(ProcesamientoEstado::PENDING, $activeStatus);
+                $failedProcessingStatus = $this->processingStatus(ProcesamientoEstado::FAILED, $activeStatus);
+
+                if (! $pendingProcessingStatus) {
+                    return $this->missingProcessingStatusResponse(ProcesamientoEstado::PENDING);
+                }
+
+                if (! $failedProcessingStatus) {
+                    return $this->missingProcessingStatusResponse(ProcesamientoEstado::FAILED);
+                }
             }
 
             $ventaHorario = VentaHorario::query()
@@ -146,6 +173,10 @@ class VendedorTicketController extends Controller
                     'qr_path' => null,
                     'ticket_plantilla_id' => $ticketPlantilla->id,
                     'ticket_image_path' => null,
+                    'procesamiento_estado_id' => $pendingProcessingStatus?->id,
+                    'processing_error' => null,
+                    'processed_at' => null,
+                    'processing_event_path' => null,
                 ]));
             }
 
@@ -166,14 +197,13 @@ class VendedorTicketController extends Controller
             $ventaHorario->save();
 
             $generatedTickets = Ticket::query()
-                ->with(['estado', 'tipoEnvio', 'ticketPlantilla', 'ventaHorario', 'vendedor'])
+                ->with(['estado', 'tipoEnvio', 'procesamientoEstado', 'ticketPlantilla', 'ventaHorario', 'vendedor'])
                 ->whereIn('id', $generatedTickets->pluck('id'))
                 ->orderBy('id')
                 ->get();
-            $mailVentaHorario = $ventaHorario->fresh(['horario.ruta', 'horario.operador', 'horario.bus', 'estado', 'cerradaPor']);
 
             return [
-                'venta_horario' => $mailVentaHorario,
+                'venta_horario' => $ventaHorario->fresh(['horario.ruta', 'horario.operador', 'horario.bus', 'estado', 'cerradaPor']),
                 'tickets_normales' => $ticketsNormales,
                 'tickets_sobreventa' => $ticketsSobreventa,
             ];
@@ -183,12 +213,34 @@ class VendedorTicketController extends Controller
             return $result;
         }
 
-        if ($generatedTickets->first()?->tipoEnvio?->isDigital()) {
-            Mail::to($validated['correo_destino'])->send(new TicketsVendidosMail($generatedTickets, $mailVentaHorario));
-        }
+        $eventPaths = [];
+        $isDigital = (bool) $generatedTickets->first()?->tipoEnvio?->isDigital();
 
-        if (! empty($validated['telefono_destino'])) {
-            $whatsAppTicketDeliveryService->prepare($validated['telefono_destino'], $generatedTickets);
+        if ($isDigital) {
+            $activeStatus = Estado::activo();
+
+            if (! $activeStatus) {
+                return $this->missingStatusResponse('activo');
+            }
+
+            $pendingProcessingStatus = $this->processingStatus(ProcesamientoEstado::PENDING, $activeStatus);
+            $failedProcessingStatus = $this->processingStatus(ProcesamientoEstado::FAILED, $activeStatus);
+
+            if (! $pendingProcessingStatus) {
+                return $this->missingProcessingStatusResponse(ProcesamientoEstado::PENDING);
+            }
+
+            if (! $failedProcessingStatus) {
+                return $this->missingProcessingStatusResponse(ProcesamientoEstado::FAILED);
+            }
+
+            $eventPaths = $this->publishDigitalProcessingEvents(
+                $generatedTickets,
+                $ticketProcessingEventService,
+                $pendingProcessingStatus,
+                $failedProcessingStatus,
+            );
+            $generatedTickets = $this->reloadTickets($generatedTickets->pluck('id'));
         }
 
         return response()->json([
@@ -198,8 +250,13 @@ class VendedorTicketController extends Controller
                 'nombre' => $generatedTickets->first()?->tipoEnvio?->nombre,
                 'descripcion' => $generatedTickets->first()?->tipoEnvio?->descripcion,
             ],
+            'procesamiento' => $isDigital ? 'pendiente' : null,
             'venta_horario' => new VentaHorarioResource($result['venta_horario']),
             'tickets' => TicketResource::collection($generatedTickets),
+            'event_paths' => $eventPaths,
+            'impresion' => $isDigital ? null : [
+                'tickets' => $generatedTickets->map(fn (Ticket $ticket): array => $this->printableTicketData($ticket))->values(),
+            ],
             'resumen' => [
                 'cantidad_solicitada' => (int) $validated['cantidad'],
                 'cantidad_generada' => $generatedTickets->count(),
@@ -210,6 +267,264 @@ class VendedorTicketController extends Controller
                 'venta_cerrada' => (bool) $result['venta_horario']->venta_cerrada,
             ],
         ], 201);
+    }
+
+    public function entregas(Request $request): JsonResponse
+    {
+        $perPage = min(max($request->integer('per_page', 15), 1), 50);
+        $filterResponse = $this->validateProcessingStateFilter($request);
+
+        if ($filterResponse) {
+            return $filterResponse;
+        }
+
+        $tickets = Ticket::query()
+            ->with(['estado', 'tipoEnvio', 'procesamientoEstado', 'ticketPlantilla', 'ventaHorario', 'vendedor'])
+            ->where('vendedor_id', $request->user()?->id)
+            ->whereHas('tipoEnvio', fn ($query) => $query->whereRaw('LOWER(nombre) = ?', [TipoEnvio::DIGITAL]))
+            ->when($request->filled('procesamiento_estado_id'), fn ($query) => $query->where('procesamiento_estado_id', $request->integer('procesamiento_estado_id')))
+            ->when($request->filled('processing_status_name'), fn ($query) => $query->whereHas(
+                'procesamientoEstado',
+                fn ($processingQuery) => $processingQuery->whereRaw('LOWER(nombre) = ?', [mb_strtolower($request->string('processing_status_name')->toString())]),
+            ))
+            ->when($request->filled('venta_horario_id'), fn ($query) => $query->where('venta_horario_id', $request->integer('venta_horario_id')))
+            ->when($request->filled('codigo_ticket'), fn ($query) => $query->where('codigo_ticket', $request->string('codigo_ticket')->toString()))
+            ->when($request->filled('fecha'), fn ($query) => $query->whereDate('created_at', $request->string('fecha')->toString()))
+            ->orderByDesc('id')
+            ->paginate($perPage);
+
+        return ApiResponse::paginated($tickets, 'tickets', TicketResource::class);
+    }
+
+    public function retryProcessing(
+        Request $request,
+        int $id,
+        TicketProcessingEventService $ticketProcessingEventService,
+    ): JsonResponse {
+        $ticket = $this->findSellerTicket($id, $request);
+
+        if ($ticket instanceof JsonResponse) {
+            return $ticket;
+        }
+
+        if (! $ticket->tipoEnvio?->isDigital()) {
+            return response()->json([
+                'message' => 'El ticket no es digital y no requiere reprocesamiento.',
+            ], 422);
+        }
+
+        if (! $ticket->procesamientoEstado) {
+            return response()->json([
+                'message' => 'El ticket no tiene estado de procesamiento asociado.',
+            ], 422);
+        }
+
+        $activeStatus = Estado::activo();
+
+        if (! $activeStatus) {
+            return $this->missingStatusResponse('activo');
+        }
+
+        $pendingProcessingStatus = $this->processingStatus(ProcesamientoEstado::PENDING, $activeStatus);
+        $failedProcessingStatus = $this->processingStatus(ProcesamientoEstado::FAILED, $activeStatus);
+
+        if (! $pendingProcessingStatus) {
+            return $this->missingProcessingStatusResponse(ProcesamientoEstado::PENDING);
+        }
+
+        if (! $failedProcessingStatus) {
+            return $this->missingProcessingStatusResponse(ProcesamientoEstado::FAILED);
+        }
+
+        if (! $ticket->procesamientoEstado->isPending() && ! $ticket->procesamientoEstado->isFailed()) {
+            return response()->json([
+                'message' => 'El ticket no se encuentra en un estado que permita reintentar el procesamiento.',
+            ], 422);
+        }
+
+        try {
+            $ticket->forceFill([
+                'procesamiento_estado_id' => $pendingProcessingStatus->id,
+                'processing_error' => null,
+                'processed_at' => null,
+            ]);
+            $ticket->setRelation('procesamientoEstado', $pendingProcessingStatus);
+
+            $eventPath = $ticketProcessingEventService->publish($ticket);
+            $ticket->forceFill([
+                'procesamiento_estado_id' => $pendingProcessingStatus->id,
+                'processing_error' => null,
+                'processed_at' => null,
+                'processing_event_path' => $eventPath,
+            ])->save();
+        } catch (Throwable $exception) {
+            $ticket->forceFill([
+                'procesamiento_estado_id' => $failedProcessingStatus->id,
+                'processing_error' => $exception->getMessage(),
+                'processed_at' => null,
+            ])->save();
+
+            return response()->json([
+                'message' => 'No se pudo reintentar el procesamiento del ticket.',
+                'ticket' => new TicketResource($ticket->fresh($this->ticketRelations())),
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Procesamiento del ticket reintentado correctamente.',
+            'processing_event_path' => $eventPath,
+            'ticket' => new TicketResource($ticket->fresh($this->ticketRelations())),
+        ]);
+    }
+
+    public function print(Request $request, int $id): JsonResponse
+    {
+        $ticket = $this->findSellerTicket($id, $request);
+
+        if ($ticket instanceof JsonResponse) {
+            return $ticket;
+        }
+
+        return response()->json([
+            'ticket' => new TicketResource($ticket),
+            'image_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
+            'print_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
+            'printable_data' => $this->printableTicketData($ticket),
+        ]);
+    }
+
+    private function publishDigitalProcessingEvents(
+        Collection $tickets,
+        TicketProcessingEventService $ticketProcessingEventService,
+        ProcesamientoEstado $pendingProcessingStatus,
+        ProcesamientoEstado $failedProcessingStatus,
+    ): array {
+        $eventPaths = [];
+
+        foreach ($tickets as $ticket) {
+            try {
+                $eventPath = $ticketProcessingEventService->publish($ticket);
+                $ticket->forceFill([
+                    'procesamiento_estado_id' => $pendingProcessingStatus->id,
+                    'processing_error' => null,
+                    'processed_at' => null,
+                    'processing_event_path' => $eventPath,
+                ])->save();
+
+                $eventPaths[$ticket->codigo_ticket] = $eventPath;
+            } catch (Throwable $exception) {
+                // La venta ya fue confirmada; el procesamiento digital queda reintentable por ticket.
+                $ticket->forceFill([
+                    'procesamiento_estado_id' => $failedProcessingStatus->id,
+                    'processing_error' => $exception->getMessage(),
+                    'processed_at' => null,
+                ])->save();
+            }
+        }
+
+        return $eventPaths;
+    }
+
+    private function findSellerTicket(int $id, Request $request): Ticket|JsonResponse
+    {
+        $ticket = Ticket::query()
+            ->with($this->ticketRelations())
+            ->find($id);
+
+        if (! $ticket) {
+            return response()->json([
+                'message' => 'El ticket solicitado no existe.',
+            ], 404);
+        }
+
+        if ((int) $ticket->vendedor_id !== (int) $request->user()?->id) {
+            return response()->json([
+                'message' => 'El ticket no pertenece al vendedor autenticado.',
+            ], 403);
+        }
+
+        return $ticket;
+    }
+
+    private function validateProcessingStateFilter(Request $request): ?JsonResponse
+    {
+        if (! $request->filled('procesamiento_estado_id')) {
+            return null;
+        }
+
+        $exists = ProcesamientoEstado::query()
+            ->whereKey($request->integer('procesamiento_estado_id'))
+            ->exists();
+
+        if ($exists) {
+            return null;
+        }
+
+        return response()->json([
+            'message' => 'El estado de procesamiento seleccionado no existe.',
+        ], 422);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function ticketRelations(): array
+    {
+        return [
+            'estado',
+            'tipoEnvio',
+            'procesamientoEstado',
+            'ticketPlantilla',
+            'ventaHorario.horario.ruta',
+            'ventaHorario.horario.operador',
+            'ventaHorario.horario.bus',
+            'ventaHorario.horario.dia',
+            'vendedor',
+        ];
+    }
+
+    private function reloadTickets(Collection $ticketIds): Collection
+    {
+        return Ticket::query()
+            ->with($this->ticketRelations())
+            ->whereIn('id', $ticketIds)
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function printableTicketData(Ticket $ticket): array
+    {
+        $ticket->loadMissing($this->ticketRelations());
+
+        $ventaHorario = $ticket->ventaHorario;
+        $horario = $ventaHorario?->horario;
+        $ruta = $horario?->ruta;
+        $operador = $horario?->operador;
+
+        return [
+            'codigo_ticket' => $ticket->codigo_ticket,
+            'ruta' => [
+                'id' => $ruta?->id,
+                'ruta' => $ruta?->ruta,
+                'denominacion' => $ruta?->denominacion,
+                'tarifa' => $ruta?->tarifa,
+            ],
+            'operador' => [
+                'id' => $operador?->id,
+                'nombre' => $operador?->nombre,
+            ],
+            'fecha_operacion' => $ventaHorario?->fecha_operacion?->toDateString(),
+            'hora_salida' => $horario?->hora_salida,
+            'asiento' => $ticket->numero_asiento,
+            'es_sobreventa' => (bool) $ticket->es_sobreventa,
+            'qr_path' => $ticket->qr_path,
+            'ticket_image_path' => $ticket->ticket_image_path,
+            'image_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
+            'print_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
+        ];
     }
 
     private function validateVentaHorario(VentaHorario $ventaHorario, Estado $activeStatus): ?JsonResponse
@@ -270,6 +585,14 @@ class VendedorTicketController extends Controller
             ->first();
     }
 
+    private function processingStatus(string $statusName, Estado $activeStatus): ?ProcesamientoEstado
+    {
+        return ProcesamientoEstado::query()
+            ->where('estado_id', $activeStatus->id)
+            ->whereRaw('LOWER(nombre) = ?', [mb_strtolower($statusName)])
+            ->first();
+    }
+
     private function generateTicketCode(): string
     {
         do {
@@ -283,6 +606,13 @@ class VendedorTicketController extends Controller
     {
         return response()->json([
             'message' => "No se encontro el estado requerido: {$statusName}.",
+        ], 500);
+    }
+
+    private function missingProcessingStatusResponse(string $statusName): JsonResponse
+    {
+        return response()->json([
+            'message' => "No se encontro el estado de procesamiento requerido: {$statusName}.",
         ], 500);
     }
 }

@@ -82,4 +82,9 @@ class Estado extends Model
     {
         return $this->hasMany(TipoEnvio::class);
     }
+
+    public function procesamientoEstados(): HasMany
+    {
+        return $this->hasMany(ProcesamientoEstado::class);
+    }
 }

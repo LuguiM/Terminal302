@@ -46,6 +46,7 @@ class DatabaseSeeder extends Seeder
             ->each(fn (string $nombre) => TipoBus::query()->firstOrCreate(['nombre' => $nombre]));
 
         $this->call(TipoEnvioSeeder::class);
+        $this->call(ProcesamientoEstadoSeeder::class);
 
         collect([
             ['nombre' => 'Lunes', 'orden' => 1],

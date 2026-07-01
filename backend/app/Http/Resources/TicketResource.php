@@ -41,6 +41,15 @@ class TicketResource extends JsonResource
             'image_url' => $this->ticket_image_path ? Storage::url($this->ticket_image_path) : null,
             'print_url' => $this->ticket_image_path ? Storage::url($this->ticket_image_path) : null,
             'ticket_plantilla_id' => $this->ticket_plantilla_id,
+            'procesamiento_estado_id' => $this->procesamiento_estado_id,
+            'procesamiento_estado' => $this->whenLoaded('procesamientoEstado', fn (): ?array => $this->procesamientoEstado ? [
+                'id' => $this->procesamientoEstado->id,
+                'nombre' => $this->procesamientoEstado->nombre,
+                'descripcion' => $this->procesamientoEstado->descripcion,
+            ] : null),
+            'processing_error' => $this->processing_error,
+            'processed_at' => $this->processed_at?->toISOString(),
+            'processing_event_path' => $this->processing_event_path,
             'ticket_plantilla' => $this->whenLoaded('ticketPlantilla', fn (): ?array => $this->ticketPlantilla ? [
                 'id' => $this->ticketPlantilla->id,
                 'nombre' => $this->ticketPlantilla->nombre,

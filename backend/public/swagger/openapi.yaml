@@ -771,6 +771,15 @@ paths:
           name: tipo_envio_id
           schema:
             type: integer
+        - in: query
+          name: procesamiento_estado_id
+          schema:
+            type: integer
+        - in: query
+          name: processing_status_name
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed]
       responses:
         '200':
           description: Lista paginada de tickets.
@@ -840,6 +849,124 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
+  /vendedor/tickets/entregas:
+    get:
+      tags:
+        - Tickets
+      summary: Listar entregas digitales
+      description: Devuelve tickets digitales vendidos por el vendedor autenticado para historial de procesamiento.
+      operationId: vendedorListTicketEntregas
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: procesamiento_estado_id
+          schema:
+            type: integer
+        - in: query
+          name: processing_status_name
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed]
+        - in: query
+          name: venta_horario_id
+          schema:
+            type: integer
+        - in: query
+          name: codigo_ticket
+          schema:
+            type: string
+        - in: query
+          name: fecha
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Lista paginada de tickets digitales.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /vendedor/tickets/{id}/retry-processing:
+    post:
+      tags:
+        - Tickets
+      summary: Reintentar procesamiento digital
+      description: Regenera el evento JSON de procesamiento para un ticket digital propio en estado pending o failed.
+      operationId: vendedorRetryTicketProcessing
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Procesamiento reintentado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketRetryProcessingResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: El ticket no es digital o no permite reintento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '500':
+          description: No se pudo publicar el evento de procesamiento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /vendedor/tickets/{id}/print:
+    get:
+      tags:
+        - Tickets
+      summary: Obtener datos de impresion de ticket
+      description: Devuelve la imagen final si existe o datos basicos para renderizar una vista imprimible.
+      operationId: vendedorPrintTicket
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Datos de impresion del ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPrintResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /validador/tickets/validar:
     post:
       tags:
@@ -2811,12 +2938,32 @@ components:
           example: Tickets generados correctamente.
         tipo_envio:
           $ref: '#/components/schemas/CatalogItem'
+        procesamiento:
+          type:
+            - string
+            - 'null'
+          example: pendiente
         venta_horario:
           $ref: '#/components/schemas/VentaHorario'
         tickets:
           type: array
           items:
             $ref: '#/components/schemas/Ticket'
+        event_paths:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            TKT-20260630-ABCD123456: ticket-events/pending/TKT-20260630-ABCD123456.json
+        impresion:
+          oneOf:
+            - type: object
+              properties:
+                tickets:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TicketPrintableData'
+            - type: 'null'
         resumen:
           type: object
           properties:
@@ -2871,6 +3018,124 @@ components:
             last_page:
               type: integer
               example: 2
+    TicketRetryProcessingResponse:
+      type: object
+      required:
+        - message
+        - ticket
+      properties:
+        message:
+          type: string
+          example: Procesamiento del ticket reintentado correctamente.
+        processing_event_path:
+          type:
+            - string
+            - 'null'
+          example: ticket-events/pending/TKT-20260630-ABCD123456.json
+        ticket:
+          $ref: '#/components/schemas/Ticket'
+    TicketPrintResponse:
+      type: object
+      required:
+        - ticket
+        - printable_data
+      properties:
+        ticket:
+          $ref: '#/components/schemas/Ticket'
+        image_url:
+          type:
+            - string
+            - 'null'
+          example: null
+        print_url:
+          type:
+            - string
+            - 'null'
+          example: null
+        printable_data:
+          $ref: '#/components/schemas/TicketPrintableData'
+    TicketPrintableData:
+      type: object
+      properties:
+        codigo_ticket:
+          type: string
+          example: TKT-20260630-ABCD123456
+        ruta:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 1
+            ruta:
+              type:
+                - string
+                - 'null'
+              example: '302'
+            denominacion:
+              type:
+                - string
+                - 'null'
+              example: Usulutan - San Salvador
+            tarifa:
+              type:
+                - number
+                - 'null'
+              format: float
+              example: 1.5
+        operador:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 1
+            nombre:
+              type:
+                - string
+                - 'null'
+              example: Operador Demo
+        fecha_operacion:
+          type:
+            - string
+            - 'null'
+          format: date
+          example: '2026-06-30'
+        hora_salida:
+          type:
+            - string
+            - 'null'
+          example: '08:00'
+        asiento:
+          type:
+            - integer
+            - 'null'
+          example: null
+        es_sobreventa:
+          type: boolean
+          example: false
+        qr_path:
+          type:
+            - string
+            - 'null'
+          example: null
+        ticket_image_path:
+          type:
+            - string
+            - 'null'
+          example: null
+        image_url:
+          type:
+            - string
+            - 'null'
+          example: null
+        print_url:
+          type:
+            - string
+            - 'null'
+          example: null
     Ticket:
       type: object
       required:
@@ -2970,6 +3235,43 @@ components:
             - integer
             - 'null'
           example: 1
+        procesamiento_estado_id:
+          type:
+            - integer
+            - 'null'
+          example: 1
+        procesamiento_estado:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                nombre:
+                  type: string
+                  example: pending
+                descripcion:
+                  type:
+                    - string
+                    - 'null'
+                  example: Procesamiento digital pendiente.
+            - type: 'null'
+        processing_error:
+          type:
+            - string
+            - 'null'
+          example: null
+        processed_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: null
+        processing_event_path:
+          type:
+            - string
+            - 'null'
+          example: ticket-events/pending/TKT-20260630-ABCD123456.json
         ticket_plantilla:
           oneOf:
             - type: object
