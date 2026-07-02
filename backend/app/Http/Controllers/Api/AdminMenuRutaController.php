@@ -19,7 +19,7 @@ class AdminMenuRutaController extends Controller
         $perPage = min(max($request->integer('per_page', 15), 1), 50);
 
         $menuRutas = MenuRuta::query()
-            ->with(['estado', 'role'])
+            ->with(['estado', 'role', 'dependencias'])
             ->when($request->filled('role_id'), fn ($query) => $query->where('role_id', $request->integer('role_id')))
             ->when($request->filled('estado_id'), fn ($query) => $query->where('estado_id', $request->integer('estado_id')))
             ->when($request->has('dependencia'), function ($query) use ($request): void {
@@ -33,6 +33,7 @@ class AdminMenuRutaController extends Controller
 
                 $query->where('dependencia', $request->integer('dependencia'));
             })
+            ->when(! $request->has('dependencia'), fn ($query) => $query->whereNull('dependencia'))
             ->when($request->filled('visible'), fn ($query) => $query->where('visible', $request->boolean('visible')))
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = mb_strtolower($request->string('search')->toString());
@@ -161,7 +162,8 @@ class AdminMenuRutaController extends Controller
     {
         $dependencia = $attributes['dependencia'] ?? null;
         $roleId = (int) $attributes['role_id'];
-        $ruta = (string) $attributes['ruta'];
+        $ruta = trim((string) $attributes['ruta']);
+        $titulo = mb_strtolower(trim((string) $attributes['titulo']));
 
         if ($dependencia !== null) {
             if ($current && (int) $dependencia === (int) $current->id) {
@@ -191,15 +193,31 @@ class AdminMenuRutaController extends Controller
             }
         }
 
-        $duplicateExists = MenuRuta::query()
+        $duplicateQuery = MenuRuta::query()
             ->where('role_id', $roleId)
-            ->where('ruta', $ruta)
             ->where(function ($query) use ($dependencia): void {
                 $dependencia === null
                     ? $query->whereNull('dependencia')
                     : $query->where('dependencia', $dependencia);
             })
-            ->when($current, fn ($query) => $query->where('id', '!=', $current->id))
+            ->when($current, fn ($query) => $query->where('id', '!=', $current->id));
+
+        if ($ruta === '') {
+            $duplicateExists = $duplicateQuery
+                ->whereRaw('LOWER(titulo) = ?', [$titulo])
+                ->exists();
+
+            if ($duplicateExists) {
+                return response()->json([
+                    'message' => 'El titulo ya existe para ese rol y dependencia.',
+                ], 422);
+            }
+
+            return null;
+        }
+
+        $duplicateExists = $duplicateQuery
+            ->where('ruta', $ruta)
             ->exists();
 
         if ($duplicateExists) {

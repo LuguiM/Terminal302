@@ -52,6 +52,9 @@ class MenuRuta extends Model
 
     public function dependencias(): HasMany
     {
-        return $this->hasMany(self::class, 'dependencia')->orderBy('orden')->orderBy('id');
+        return $this->hasMany(self::class, 'dependencia')
+            ->with(['estado', 'role', 'dependencias'])
+            ->orderBy('orden')
+            ->orderBy('id');
     }
 }

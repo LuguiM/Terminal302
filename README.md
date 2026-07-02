@@ -240,13 +240,13 @@ El empresario puede registrar un solo operador. Al crear el operador no se envia
 Campos base para crear o editar operador:
 
 - `tipo_operador_id`
-- `nombre`
-- `documento` opcional
-- `telefono`
-- `correo`
-- `direccion`
+- `nombre_comercial`
 
-Si el tipo de operador es `empresa`, tambien son obligatorios `razon_social` y `representante_legal`. Si el tipo es `persona`, esos campos pueden ir como `null` o no enviarse.
+Si el tipo de operador es `empresa`, tambien son obligatorios `razon_social`, `representante_legal` y `nit` con formato `0614-290695-101-3`. Para empresa, `direccion`, `telefono` y `correo_administrativo` son opcionales.
+
+Si el tipo de operador es `persona`, son obligatorios `dui` con formato `12345678-9`, `telefono` y `nombre_comercial`. Para persona, `telefono_opcional` es opcional.
+
+El backend no acepta los campos antiguos `nombre`, `documento` ni `correo`. Cuando otros modulos devuelvan informacion embebida del operador, usaran `nombre_comercial`.
 
 Rutas para administradores:
 

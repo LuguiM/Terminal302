@@ -8,6 +8,7 @@ use App\Http\Requests\Operador\UpdateOperadorRequest;
 use App\Http\Resources\OperadorResource;
 use App\Models\Estado;
 use App\Models\Operador;
+use App\Models\TipoOperador;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -45,8 +46,10 @@ class OperadorController extends Controller
             return $this->missingStatusResponse('activo');
         }
 
+        $operatorData = $this->operatorDataForType($request->validated());
+
         $operador = Operador::query()->create([
-            ...$request->validated(),
+            ...$operatorData,
             'user_id' => $user->id,
             'estado_id' => $activeStatus->id,
         ]);
@@ -65,12 +68,62 @@ class OperadorController extends Controller
             ], 403);
         }
 
-        $operador->update($request->validated());
+        $operador->update($this->operatorDataForType($request->validated()));
 
         return response()->json([
             'message' => 'Operador actualizado correctamente.',
             'operador' => new OperadorResource($operador->fresh(['tipoOperador', 'estado'])),
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function operatorDataForType(array $data): array
+    {
+        $baseData = [
+            'tipo_operador_id' => $data['tipo_operador_id'],
+            'nombre_comercial' => $this->nullableString($data, 'nombre_comercial'),
+        ];
+
+        $tipoOperador = mb_strtolower((string) TipoOperador::query()->find($data['tipo_operador_id'])?->nombre);
+
+        if ($tipoOperador === 'empresa') {
+            return [
+                ...$baseData,
+                'razon_social' => $this->nullableString($data, 'razon_social'),
+                'representante_legal' => $this->nullableString($data, 'representante_legal'),
+                'direccion' => $this->nullableString($data, 'direccion'),
+                'telefono' => $this->nullableString($data, 'telefono'),
+                'telefono_opcional' => null,
+                'correo_administrativo' => $this->nullableString($data, 'correo_administrativo'),
+                'nit' => $this->nullableString($data, 'nit'),
+                'dui' => null,
+            ];
+        }
+
+        return [
+            ...$baseData,
+            'razon_social' => null,
+            'representante_legal' => null,
+            'direccion' => null,
+            'telefono' => $this->nullableString($data, 'telefono'),
+            'telefono_opcional' => $this->nullableString($data, 'telefono_opcional'),
+            'correo_administrativo' => null,
+            'nit' => null,
+            'dui' => $this->nullableString($data, 'dui'),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function nullableString(array $data, string $key): ?string
+    {
+        $value = trim((string) ($data[$key] ?? ''));
+
+        return $value === '' ? null : $value;
     }
 
     private function missingStatusResponse(string $statusName): JsonResponse

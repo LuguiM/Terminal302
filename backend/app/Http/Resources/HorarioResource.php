@@ -21,7 +21,7 @@ class HorarioResource extends JsonResource
             ],
             'operador' => [
                 'id' => $this->operador?->id,
-                'nombre' => $this->operador?->nombre,
+                'nombre_comercial' => $this->operador?->nombre_comercial,
             ],
             'bus' => [
                 'id' => $this->bus?->id,

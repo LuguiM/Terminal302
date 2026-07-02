@@ -26,7 +26,7 @@ class PublicTicketResource extends JsonResource
             'denominacion' => $ruta?->denominacion,
             'operador' => [
                 'id' => $horario?->operador?->id,
-                'nombre' => $horario?->operador?->nombre,
+                'nombre_comercial' => $horario?->operador?->nombre_comercial,
             ],
             'dia' => [
                 'id' => $horario?->dia?->id,

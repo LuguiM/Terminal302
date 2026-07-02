@@ -108,7 +108,7 @@ class AdminHorarioController extends Controller
                 $query->where('ruta_id', $ruta->id)
                     ->where('estado_id', $activeStatus->id);
             })
-            ->orderBy('nombre')
+            ->orderBy('nombre_comercial')
             ->get();
 
         return response()->json([
@@ -168,6 +168,7 @@ class AdminHorarioController extends Controller
 
         return response()->json([
             'message' => 'Horario creado correctamente.',
+            'horario' => new HorarioResource($horario->load(['ruta', 'operador', 'bus', 'dia', 'estado'])),
         ], 201);
     }
 
@@ -195,6 +196,7 @@ class AdminHorarioController extends Controller
 
         return response()->json([
             'message' => 'Horario actualizado correctamente.',
+            'horario' => new HorarioResource($horario->fresh(['ruta', 'operador', 'bus', 'dia', 'estado'])),
         ]);
     }
 
@@ -225,6 +227,7 @@ class AdminHorarioController extends Controller
 
         return response()->json([
             'message' => 'Estado del horario actualizado correctamente.',
+            'horario' => new HorarioResource($horario->fresh(['ruta', 'operador', 'bus', 'dia', 'estado'])),
         ]);
     }
 

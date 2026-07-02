@@ -84,7 +84,7 @@ class PublicApiTest extends TestCase
             ->assertJsonPath('ruta.id', $context['ruta']->id)
             ->assertJsonPath('horarios.0.dia.nombre', 'Martes')
             ->assertJsonPath('horarios.0.hora_salida', '10:00')
-            ->assertJsonPath('horarios.0.operador.nombre', $context['operador']->nombre)
+            ->assertJsonPath('horarios.0.operador.nombre_comercial', $context['operador']->nombre_comercial)
             ->assertJsonPath('horarios.0.bus.placa', $context['bus']->placa)
             ->assertJsonPath('horarios.0.tarifa', '1.50')
             ->assertJsonMissing(['hora_salida' => '11:00']);
@@ -120,7 +120,7 @@ class PublicApiTest extends TestCase
             ->assertJsonPath('ticket.estado.nombre', 'Emitido')
             ->assertJsonPath('ticket.ruta', '302')
             ->assertJsonPath('ticket.denominacion', 'Usulutan - San Salvador')
-            ->assertJsonPath('ticket.operador.nombre', $context['operador']->nombre)
+            ->assertJsonPath('ticket.operador.nombre_comercial', $context['operador']->nombre_comercial)
             ->assertJsonPath('ticket.dia.nombre', $context['dia']->nombre)
             ->assertJsonPath('ticket.hora_salida', '08:00')
             ->assertJsonPath('ticket.fecha_operacion', '2026-06-30')
@@ -214,10 +214,10 @@ class PublicApiTest extends TestCase
         return Operador::query()->create([
             'user_id' => $user->id,
             'tipo_operador_id' => $tipoPersona->id,
-            'nombre' => 'Operador '.$user->id,
+            'nombre_comercial' => 'Operador '.$user->id,
             'telefono' => '2222-3333',
-            'correo' => 'operador'.$user->id.'@example.test',
-            'direccion' => 'San Salvador',
+            'dui' => sprintf('%08d-%d', $user->id, $user->id % 10),
+            'correo_administrativo' => 'operador'.$user->id.'@example.test',
             'estado_id' => Estado::ACTIVO_ID,
         ]);
     }

@@ -307,10 +307,10 @@ class ValidacionTicketApiTest extends TestCase
         return Operador::query()->create([
             'user_id' => $user->id,
             'tipo_operador_id' => $tipoPersona->id,
-            'nombre' => 'Operador '.$user->id,
+            'nombre_comercial' => 'Operador '.$user->id,
             'telefono' => '2222-3333',
-            'correo' => 'operador'.$user->id.'@example.test',
-            'direccion' => 'San Salvador',
+            'dui' => sprintf('%08d-%d', $user->id, $user->id % 10),
+            'correo_administrativo' => 'operador'.$user->id.'@example.test',
             'estado_id' => Estado::ACTIVO_ID,
         ]);
     }
