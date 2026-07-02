@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
-import api, { TOKEN_STORAGE_KEY } from '@/services/api'
+import { TOKEN_STORAGE_KEY } from '@/services/api'
+import { login as loginRequest, logout as logoutRequest } from '@/services/authService'
 
 const USER_STORAGE_KEY = 'terminal302_user'
 
@@ -22,28 +23,46 @@ const getStoredUser = () => {
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: getStoredUser(),
-    token: localStorage.getItem(TOKEN_STORAGE_KEY),
+    accessToken: localStorage.getItem(TOKEN_STORAGE_KEY),
     loading: false,
+    error: null,
   }),
 
   getters: {
-    isAuthenticated: (state) => Boolean(state.token),
+    isAuthenticated: (state) => Boolean(state.accessToken),
   },
 
   actions: {
+    loadSession() {
+      this.accessToken = localStorage.getItem(TOKEN_STORAGE_KEY)
+      this.user = getStoredUser()
+    },
+
     async login(credentials) {
       this.loading = true
+      this.error = null
 
       try {
-        const { data } = await api.post('/login', credentials)
+        const { data } = await loginRequest(credentials)
+        const accessToken = data.access_token
 
-        this.token = data.access_token
-        this.user = data.user
+        this.accessToken = accessToken
+        this.user = data.user ?? null
 
-        localStorage.setItem(TOKEN_STORAGE_KEY, this.token)
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(this.user))
+        if (accessToken) {
+          localStorage.setItem(TOKEN_STORAGE_KEY, accessToken)
+        }
+
+        if (this.user) {
+          localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(this.user))
+        } else {
+          localStorage.removeItem(USER_STORAGE_KEY)
+        }
 
         return data
+      } catch (error) {
+        this.error = error
+        throw error
       } finally {
         this.loading = false
       }
@@ -51,12 +70,13 @@ export const useAuthStore = defineStore('auth', {
 
     async logout() {
       try {
-        if (this.token) {
-          await api.post('/logout', null, { suppressToast: true }).catch(() => {})
+        if (this.accessToken) {
+          await logoutRequest({ suppressToast: true }).catch(() => {})
         }
       } finally {
         this.user = null
-        this.token = null
+        this.accessToken = null
+        this.error = null
         localStorage.removeItem(TOKEN_STORAGE_KEY)
         localStorage.removeItem(USER_STORAGE_KEY)
       }

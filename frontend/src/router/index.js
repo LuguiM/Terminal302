@@ -64,15 +64,18 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
   const menuStore = useMenuStore()
+  const accessToken = localStorage.getItem('access_token')
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+  authStore.loadSession()
+
+  if (to.meta.requiresAuth && !accessToken) {
     return {
       name: 'login',
       query: { redirect: to.fullPath },
     }
   }
 
-  if (to.name === 'login' && authStore.isAuthenticated) {
+  if (to.name === 'login' && accessToken) {
     return { name: 'inicio' }
   }
 
