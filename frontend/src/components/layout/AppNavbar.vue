@@ -22,7 +22,7 @@ const handleLogout = async () => {
     class="app-navbar"
     color="surface"
     elevation="0"
-    height="126"
+    height="90"
   >
     <v-app-bar-nav-icon
       class="navbar-menu-button"

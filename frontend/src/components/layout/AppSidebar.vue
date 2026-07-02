@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useDisplay } from 'vuetify'
 
+import logoImage from '@/assets/logo.png'
 import SidebarMenuItem from '@/components/layout/SidebarMenuItem.vue'
 import { useMenuStore } from '@/stores/menuStore'
 
@@ -32,17 +33,18 @@ onMounted(() => {
     class="app-sidebar"
     :permanent="mdAndUp"
     :temporary="!mdAndUp"
-    width="332"
+    width="290"
   >
     <div class="sidebar-shell">
       <div class="sidebar-brand">
-        <v-icon
-          class="sidebar-brand-icon"
-          icon="mdi-bus"
+        <v-img
+          alt="Terminal 302"
+          class="sidebar-brand-logo"
+          max-width="220"
+          height="100"
+          :src="logoImage"
+          width="80%"
         />
-        <div class="sidebar-brand-text">
-          TERMINAL 302
-        </div>
       </div>
 
       <v-list

@@ -37,22 +37,11 @@ body {
   align-items: center;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   padding: 20px 20px 32px;
 }
 
-.sidebar-brand-icon {
-  color: #006fd6;
-  font-size: 78px;
-}
-
-.sidebar-brand-text {
-  color: #06163a;
-  font-size: clamp(1.35rem, 6vw, 1.9rem);
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-align: center;
+.sidebar-brand-logo {
+  flex: 0 0 auto;
 }
 
 .sidebar-menu {
@@ -81,15 +70,13 @@ body {
 
 .sidebar-footer {
   color: #111111;
-  font-size: 1.4rem;
-  font-weight: 800;
+  font-size: 1rem;
   padding: 24px;
   text-align: center;
 }
 
 .app-navbar {
   border-bottom: 1px solid #06163a;
-  border-left: 1px solid #06163a;
 }
 
 .navbar-menu-button {
@@ -112,13 +99,11 @@ body {
 }
 
 .dashboard-content {
-  min-height: calc(100vh - 126px);
   padding: 32px 20px;
 }
 
 .home-view,
 .placeholder-view {
-  min-height: 100vh;
   padding: 24px 0;
 }
 

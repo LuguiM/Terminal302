@@ -4,7 +4,7 @@ import { ref } from 'vue'
 import AppNavbar from '@/components/layout/AppNavbar.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 
-const drawer = ref(false)
+const drawer = ref(true)
 </script>
 
 <template>

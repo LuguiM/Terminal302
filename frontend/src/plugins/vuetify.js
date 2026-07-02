@@ -11,7 +11,7 @@ const terminal302Theme = {
     secondary: '#33415C',
     background: '#F8F9FA',
     surface: '#FFFFFF',
-    error: '#DD9395',
+    error: '#B9292C',
     success: '#19AD27',
     warning: '#F9A825',
     info: '#0288D1',
