@@ -46,21 +46,38 @@ body {
 
 .sidebar-menu {
   flex: 1;
-  padding: 0 18px;
+  padding: 0 28px;
 }
 
 .sidebar-menu-item {
   color: #33405a;
   font-size: 1rem;
   font-weight: 700;
-  margin: 10px 0;
+  margin: 12px 0;
   min-height: 46px;
+  padding-inline: 0;
 }
 
 .sidebar-menu-item .v-list-item-title {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
+  white-space: normal;
+}
+
+.sidebar-menu-group {
+  margin: 18px 0;
+}
+
+.sidebar-menu-section {
+  color: rgb(var(--v-theme-blueLigth));
+  font-size: 1.15rem;
+  line-height: 1.35;
+  margin: 16px 0 22px;
+}
+
+.sidebar-menu-children {
+  margin: 0;
 }
 
 .sidebar-menu-item--active,

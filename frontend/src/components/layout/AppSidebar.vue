@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useDisplay } from 'vuetify'
 
 import logoImage from '@/assets/logo.png'
@@ -11,15 +11,6 @@ const drawer = defineModel({ type: Boolean, default: false })
 const menuStore = useMenuStore()
 const { mdAndUp } = useDisplay()
 
-const drawerModel = computed({
-  get() {
-    return mdAndUp.value ? true : drawer.value
-  },
-  set(value) {
-    drawer.value = value
-  },
-})
-
 onMounted(() => {
   if (!menuStore.loaded && !menuStore.loading) {
     menuStore.fetchMenu().catch(() => {})
@@ -29,7 +20,7 @@ onMounted(() => {
 
 <template>
   <v-navigation-drawer
-    v-model="drawerModel"
+    v-model="drawer"
     class="app-sidebar"
     :permanent="mdAndUp"
     :temporary="!mdAndUp"
