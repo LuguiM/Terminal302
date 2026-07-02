@@ -55,6 +55,12 @@ class MenuRutaApiTest extends TestCase
             ])
             ->assertJsonPath('pagination.total', 1)
             ->assertJsonPath('menu_rutas.0.id', $child->id);
+
+        $this->getJson("/api/admin/menu-rutas?role_id={$adminRole->id}&estado_id=".Estado::ACTIVO_ID)
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('menu_rutas.0.id', $parent->id)
+            ->assertJsonPath('menu_rutas.0.dependencias.0.id', $child->id);
     }
 
     public function test_admin_can_create_update_and_toggle_menu_route(): void
@@ -124,6 +130,30 @@ class MenuRutaApiTest extends TestCase
         ])
             ->assertUnprocessable()
             ->assertJsonPath('message', 'La ruta ya existe para ese rol y dependencia.');
+
+        $this->postJson('/api/admin/menu-rutas', [
+            'titulo' => 'Gestiones',
+            'ruta' => '',
+            'orden' => 3,
+            'icono' => '',
+            'visible' => true,
+            'requiere_autenticacion' => true,
+            'dependencia' => null,
+            'role_id' => $adminRole->id,
+            'base_url' => 'http://localhost:5173',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('menu_ruta.titulo', 'Gestiones');
+
+        $this->postJson('/api/admin/menu-rutas', [
+            'titulo' => 'Gestiones',
+            'ruta' => '',
+            'orden' => 4,
+            'dependencia' => null,
+            'role_id' => $adminRole->id,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'El titulo ya existe para ese rol y dependencia.');
 
         $this->postJson('/api/admin/menu-rutas', [
             'titulo' => 'Hijo cruzado',
