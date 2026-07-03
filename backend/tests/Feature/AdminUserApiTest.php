@@ -50,6 +50,20 @@ class AdminUserApiTest extends TestCase
             ->assertJsonPath('pagination.per_page', 15);
     }
 
+    public function test_admin_can_search_users(): void
+    {
+        $admin = $this->createUser(roleName: 'administrador', email: 'admin@example.test');
+        $seller = $this->createUser(roleName: 'vendedor', email: 'seller@example.test');
+        $this->createUser(roleName: 'validador', email: 'validator@example.test');
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/admin/users?search=seller')
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('users.0.email', $seller->email);
+    }
+
     public function test_admin_can_create_user_and_credentials_email_is_sent(): void
     {
         Mail::fake();
