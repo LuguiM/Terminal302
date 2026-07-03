@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
                 Route::get('/me', [OperadorController::class, 'me']);
                 Route::put('/{operador}', [OperadorController::class, 'update']);
 
+                Route::get('/rutas-disponibles', [OperadorRutaController::class, 'rutasDisponibles']);
                 Route::get('/rutas', [OperadorRutaController::class, 'index']);
                 Route::post('/rutas', [OperadorRutaController::class, 'store']);
                 Route::patch('/rutas/{operadorRuta}/toggle-status', [OperadorRutaController::class, 'toggleStatus']);

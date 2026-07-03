@@ -65,6 +65,20 @@ const routes = [
           },
         ],
       },
+      {
+        path: 'operador',
+        children: [
+          {
+            path: 'rutas',
+            name: 'operator-routes',
+            component: () => import('@/views/operators/routes/OperatorRoutesView.vue'),
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/operador/rutas',
+            },
+          },
+        ],
+      },
     ],
   },
   {

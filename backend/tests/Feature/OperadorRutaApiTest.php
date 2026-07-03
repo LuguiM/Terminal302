@@ -61,6 +61,52 @@ class OperadorRutaApiTest extends TestCase
             ->assertJsonPath('operador_rutas.0.ruta', '302');
     }
 
+    public function test_empresario_can_search_own_operator_routes_by_code_or_name(): void
+    {
+        $empresario = $this->createUser('empresario', 'empresario@example.test');
+        $operador = $this->createOperador($empresario);
+        $firstRuta = $this->createRuta('302', 'Usulutan - San Salvador');
+        $secondRuta = $this->createRuta('450', 'Santa Ana - Sonsonate');
+        $this->createOperadorRuta($operador, $firstRuta);
+        $this->createOperadorRuta($operador, $secondRuta);
+
+        Sanctum::actingAs($empresario);
+
+        $this->getJson('/api/operador/rutas?search=sonsonate')
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('operador_rutas.0.ruta', '450');
+
+        $this->getJson('/api/operador/rutas?search=302')
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('operador_rutas.0.ruta', '302');
+    }
+
+    public function test_empresario_can_list_available_active_unassigned_routes_without_pagination(): void
+    {
+        $empresario = $this->createUser('empresario', 'empresario@example.test');
+        $operador = $this->createOperador($empresario);
+        $assignedRuta = $this->createRuta('302', 'Usulutan - San Salvador');
+        $availableRuta = $this->createRuta('450', 'Santa Ana - Sonsonate');
+        $this->createRuta(
+            ruta: '600',
+            denominacion: 'Ruta desactivada',
+            estadoId: Estado::DESACTIVADO_ID,
+            estadoName: 'Desactivado',
+        );
+        $this->createOperadorRuta($operador, $assignedRuta);
+
+        Sanctum::actingAs($empresario);
+
+        $this->getJson('/api/operador/rutas-disponibles')
+            ->assertOk()
+            ->assertJsonMissingPath('pagination')
+            ->assertJsonCount(1, 'rutas')
+            ->assertJsonPath('rutas.0.id', $availableRuta->id)
+            ->assertJsonPath('rutas.0.ruta', '450');
+    }
+
     public function test_empresario_can_assign_active_route_to_operator(): void
     {
         $empresario = $this->createUser('empresario', 'empresario@example.test');

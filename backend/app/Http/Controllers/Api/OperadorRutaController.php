@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\OperadorRuta\StoreOperadorRutaRequest;
 use App\Http\Resources\OperadorRutaResource;
+use App\Http\Resources\RutaResource;
 use App\Models\Estado;
 use App\Models\Operador;
 use App\Models\OperadorRuta;
@@ -28,10 +29,47 @@ class OperadorRutaController extends Controller
         $operadorRutas = OperadorRuta::query()
             ->with(['ruta.estado', 'estado'])
             ->where('operador_id', $operador->id)
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $search = mb_strtolower((string) $request->input('search'));
+
+                $query->whereHas('ruta', function ($rutaQuery) use ($search): void {
+                    $rutaQuery
+                        ->whereRaw('LOWER(ruta) LIKE ?', ["%{$search}%"])
+                        ->orWhereRaw('LOWER(denominacion) LIKE ?', ["%{$search}%"]);
+                });
+            })
             ->orderBy('id')
             ->paginate($perPage);
 
         return ApiResponse::paginated($operadorRutas, 'operador_rutas', OperadorRutaResource::class);
+    }
+
+    public function rutasDisponibles(Request $request): JsonResponse
+    {
+        $operador = $this->authenticatedOperador($request);
+
+        if (! $operador) {
+            return $this->missingOperadorResponse();
+        }
+
+        $activeStatus = Estado::activo();
+
+        if (! $activeStatus) {
+            return $this->missingStatusResponse('activo');
+        }
+
+        $rutas = Ruta::query()
+            ->with('estado')
+            ->where('estado_id', $activeStatus->id)
+            ->whereDoesntHave('operadorRutas', function ($query) use ($operador): void {
+                $query->where('operador_id', $operador->id);
+            })
+            ->orderBy('ruta')
+            ->get();
+
+        return response()->json([
+            'rutas' => RutaResource::collection($rutas),
+        ]);
     }
 
     public function store(StoreOperadorRutaRequest $request): JsonResponse
