@@ -40,8 +40,14 @@ const submitLogin = async () => {
     }
 
     notify.success('Inicio de sesion correcto.')
+
+    if (authStore.mustChangePassword) {
+      router.push({ name: 'change-password' })
+      return
+    }
+
     router.push({
-      name: authStore.mustChangePassword ? 'change-password' : 'inicio',
+      name: authStore.requiresOperatorRegistration ? 'operator-registration' : 'inicio',
     })
   } catch {
     password.value = ''

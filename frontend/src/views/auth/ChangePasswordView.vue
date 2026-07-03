@@ -60,7 +60,9 @@ const submitChangePassword = async () => {
     })
 
     notify.success('Contraseña actualizada correctamente.')
-    router.push({ name: 'inicio' })
+    router.push({
+      name: authStore.requiresOperatorRegistration ? 'operator-registration' : 'inicio',
+    })
   } catch {
     form.password = ''
     form.password_confirmation = ''

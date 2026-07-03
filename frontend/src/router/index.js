@@ -72,6 +72,16 @@ const routes = [
     },
   },
   {
+    path: '/registro-operador',
+    name: 'operator-registration',
+    component: () => import('@/views/operators/register/OperatorRegistrationView.vue'),
+    meta: {
+      requiresAuth: true,
+      skipMenuPermission: true,
+      isOperatorRegistrationRoute: true,
+    },
+  },
+  {
     path: '/403',
     name: 'forbidden',
     component: () => import('@/views/errors/ForbiddenView.vue'),
@@ -105,8 +115,12 @@ router.beforeEach(async (to) => {
   }
 
   if (to.name === 'login' && accessToken) {
-    return authStore.mustChangePassword
-      ? { name: 'change-password' }
+    if (authStore.mustChangePassword) {
+      return { name: 'change-password' }
+    }
+
+    return authStore.requiresOperatorRegistration
+      ? { name: 'operator-registration' }
       : { name: 'inicio' }
   }
 
@@ -117,6 +131,24 @@ router.beforeEach(async (to) => {
     && to.name !== 'login'
   ) {
     return { name: 'change-password' }
+  }
+
+  if (
+    accessToken
+    && !authStore.mustChangePassword
+    && authStore.requiresOperatorRegistration
+    && !to.meta.isOperatorRegistrationRoute
+    && to.name !== 'login'
+  ) {
+    return { name: 'operator-registration' }
+  }
+
+  if (
+    accessToken
+    && !authStore.requiresOperatorRegistration
+    && to.meta.isOperatorRegistrationRoute
+  ) {
+    return { name: 'inicio' }
   }
 
   if (!to.meta.requiresAuth || to.meta.skipMenuPermission) {

@@ -9,9 +9,14 @@ import {
 
 const USER_STORAGE_KEY = 'terminal302_user'
 const MUST_CHANGE_PASSWORD_STORAGE_KEY = 'must_change_password'
+const REQUIRES_OPERATOR_REGISTRATION_STORAGE_KEY = 'requires_operator_registration'
 
 const getStoredMustChangePassword = () => {
   return localStorage.getItem(MUST_CHANGE_PASSWORD_STORAGE_KEY) === 'true'
+}
+
+const getStoredRequiresOperatorRegistration = () => {
+  return localStorage.getItem(REQUIRES_OPERATOR_REGISTRATION_STORAGE_KEY) === 'true'
 }
 
 const getStoredUser = () => {
@@ -34,6 +39,7 @@ export const useAuthStore = defineStore('auth', {
     user: getStoredUser(),
     accessToken: localStorage.getItem(TOKEN_STORAGE_KEY),
     mustChangePassword: getStoredMustChangePassword(),
+    requiresOperatorRegistration: getStoredRequiresOperatorRegistration(),
     loading: false,
     error: null,
   }),
@@ -47,6 +53,15 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = localStorage.getItem(TOKEN_STORAGE_KEY)
       this.user = getStoredUser()
       this.mustChangePassword = getStoredMustChangePassword()
+      this.requiresOperatorRegistration = getStoredRequiresOperatorRegistration()
+    },
+
+    setRequiresOperatorRegistration(value) {
+      this.requiresOperatorRegistration = Boolean(value)
+      localStorage.setItem(
+        REQUIRES_OPERATOR_REGISTRATION_STORAGE_KEY,
+        String(this.requiresOperatorRegistration),
+      )
     },
 
     async login(credentials) {
@@ -59,10 +74,12 @@ export const useAuthStore = defineStore('auth', {
         const mustChangePassword = Boolean(
           data.must_change_password ?? data.user?.must_change_password,
         )
+        const requiresOperatorRegistration = Boolean(data.requires_operator_registration)
 
         this.accessToken = accessToken
         this.user = data.user ?? null
         this.mustChangePassword = mustChangePassword
+        this.requiresOperatorRegistration = requiresOperatorRegistration
 
         if (accessToken) {
           localStorage.setItem(TOKEN_STORAGE_KEY, accessToken)
@@ -75,6 +92,10 @@ export const useAuthStore = defineStore('auth', {
         }
 
         localStorage.setItem(MUST_CHANGE_PASSWORD_STORAGE_KEY, String(mustChangePassword))
+        localStorage.setItem(
+          REQUIRES_OPERATOR_REGISTRATION_STORAGE_KEY,
+          String(requiresOperatorRegistration),
+        )
 
         return data
       } catch (error) {
@@ -125,10 +146,12 @@ export const useAuthStore = defineStore('auth', {
         this.user = null
         this.accessToken = null
         this.mustChangePassword = false
+        this.requiresOperatorRegistration = false
         this.error = null
         localStorage.removeItem(TOKEN_STORAGE_KEY)
         localStorage.removeItem(USER_STORAGE_KEY)
         localStorage.removeItem(MUST_CHANGE_PASSWORD_STORAGE_KEY)
+        localStorage.removeItem(REQUIRES_OPERATOR_REGISTRATION_STORAGE_KEY)
       }
     },
   },
