@@ -20,6 +20,15 @@ class AdminRutaController extends Controller
 
         $rutas = Ruta::query()
             ->with('estado')
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $search = mb_strtolower((string) $request->input('search'));
+
+                $query->where(function ($query) use ($search): void {
+                    $query
+                        ->whereRaw('LOWER(ruta) LIKE ?', ["%{$search}%"])
+                        ->orWhereRaw('LOWER(denominacion) LIKE ?', ["%{$search}%"]);
+                });
+            })
             ->orderBy('id')
             ->paginate($perPage);
 
