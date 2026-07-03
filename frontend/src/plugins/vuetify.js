@@ -17,7 +17,8 @@ const terminal302Theme = {
     info: '#0288D1',
 
     redSystem: '#B9292C',
-    blueLigth: '#0466C8',
+    blueLigth: '#023E7D',
+    greyLigth: '#ededf1',
   },
 }
 

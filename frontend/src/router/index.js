@@ -32,6 +32,25 @@ const routes = [
           permissionPath: '/avisos',
         },
       },
+      {
+        path: 'admin',
+        children: [
+          {
+            path: 'gestiones',
+            children: [
+              {
+                path: 'usuarios',
+                name: 'admin-users',
+                component: () => import('@/views/users/UserManagementView.vue'),
+                meta: {
+                  requiresAuth: true,
+                  permissionPath: '/admin/gestiones/usuarios',
+                },
+              },
+            ],
+          },
+        ],
+      },
     ],
   },
   {
