@@ -21,9 +21,25 @@ class AdminUserController extends Controller
     public function index(Request $request): JsonResponse
     {
         $perPage = min(max($request->integer('per_page', 15), 1), 50);
+        $search = trim($request->string('search')->toString());
 
         $users = User::query()
             ->with(['role', 'estado'])
+            ->when($search !== '', function ($query) use ($search): void {
+                $searchTerm = '%'.mb_strtolower($search).'%';
+
+                $query->where(function ($query) use ($searchTerm): void {
+                    $query
+                        ->whereRaw('LOWER(name) LIKE ?', [$searchTerm])
+                        ->orWhereRaw('LOWER(email) LIKE ?', [$searchTerm])
+                        ->orWhereHas('role', function ($query) use ($searchTerm): void {
+                            $query->whereRaw('LOWER(nombre) LIKE ?', [$searchTerm]);
+                        })
+                        ->orWhereHas('estado', function ($query) use ($searchTerm): void {
+                            $query->whereRaw('LOWER(nombre) LIKE ?', [$searchTerm]);
+                        });
+                });
+            })
             ->orderBy('id')
             ->paginate($perPage);
 
