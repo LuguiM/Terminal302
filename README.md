@@ -210,6 +210,8 @@ Base URL: `http://localhost:8302/api`
 - `GET /user` con Bearer token
 - `POST /change-initial-password` con Bearer token
 
+El login devuelve `requires_operator_registration=true` cuando el usuario autenticado tiene rol `empresario` y todavia no tiene operador registrado.
+
 ## Gestion de usuarios administradores
 
 Rutas protegidas con Bearer token, rol `administrador` y contrasena inicial ya cambiada:
