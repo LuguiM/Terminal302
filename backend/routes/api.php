@@ -34,26 +34,29 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me/menu-rutas', [MeMenuRutaController::class, 'index']);
     Route::post('/change-initial-password', [AuthController::class, 'changeInitialPassword']);
 
-    Route::middleware(['password.changed', 'role:empresario', 'operator.active'])
+    Route::middleware(['password.changed', 'role:empresario'])
         ->prefix('operador')
         ->group(function (): void {
-            Route::get('/me', [OperadorController::class, 'me']);
             Route::post('/', [OperadorController::class, 'store']);
-            Route::put('/{operador}', [OperadorController::class, 'update']);
 
-            Route::get('/rutas', [OperadorRutaController::class, 'index']);
-            Route::post('/rutas', [OperadorRutaController::class, 'store']);
-            Route::patch('/rutas/{operadorRuta}/toggle-status', [OperadorRutaController::class, 'toggleStatus']);
-            Route::delete('/rutas/{operadorRuta}', [OperadorRutaController::class, 'destroy']);
+            Route::middleware('operator.active')->group(function (): void {
+                Route::get('/me', [OperadorController::class, 'me']);
+                Route::put('/{operador}', [OperadorController::class, 'update']);
 
-            Route::get('/buses', [BusController::class, 'index']);
-            Route::post('/buses', [BusController::class, 'store']);
-            Route::put('/buses/{bus}', [BusController::class, 'update']);
-            Route::patch('/buses/{bus}/toggle-status', [BusController::class, 'toggleStatus']);
+                Route::get('/rutas', [OperadorRutaController::class, 'index']);
+                Route::post('/rutas', [OperadorRutaController::class, 'store']);
+                Route::patch('/rutas/{operadorRuta}/toggle-status', [OperadorRutaController::class, 'toggleStatus']);
+                Route::delete('/rutas/{operadorRuta}', [OperadorRutaController::class, 'destroy']);
 
-            Route::get('/horarios/rutas', [OperadorHorarioController::class, 'rutas']);
-            Route::get('/horarios/rutas/{ruta}', [OperadorHorarioController::class, 'diasPorRuta']);
-            Route::get('/horarios', [OperadorHorarioController::class, 'horariosPorRutaYDia']);
+                Route::get('/buses', [BusController::class, 'index']);
+                Route::post('/buses', [BusController::class, 'store']);
+                Route::put('/buses/{bus}', [BusController::class, 'update']);
+                Route::patch('/buses/{bus}/toggle-status', [BusController::class, 'toggleStatus']);
+
+                Route::get('/horarios/rutas', [OperadorHorarioController::class, 'rutas']);
+                Route::get('/horarios/rutas/{ruta}', [OperadorHorarioController::class, 'diasPorRuta']);
+                Route::get('/horarios', [OperadorHorarioController::class, 'horariosPorRutaYDia']);
+            });
         });
 
     Route::middleware(['password.changed', 'role:vendedor'])
