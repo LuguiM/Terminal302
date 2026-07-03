@@ -12,12 +12,11 @@ import {
   toggleUserStatus,
   updateUser,
 } from "@/services/userService";
-import UserActivateModal from "@/views/admin/users/components/UserActivateModal.vue";
 import UserCreateModal from "@/views/admin/users/components/UserCreateModal.vue";
-import UserDeactivateModal from "@/views/admin/users/components/UserDeactivateModal.vue";
 import UserDeleteModal from "@/views/admin/users/components/UserDeleteModal.vue";
 import UserEditModal from "@/views/admin/users/components/UserEditModal.vue";
 import UserResetPasswordModal from "@/views/admin/users/components/UserResetPasswordModal.vue";
+import UserStatusModal from "@/views/admin/users/components/UserStatusModal.vue";
 
 const users = ref([]);
 const loading = ref(false);
@@ -33,9 +32,8 @@ const actionLoading = ref(false);
 const showCreateModal = ref(false);
 const showEditModal = ref(false);
 const showResetPasswordModal = ref(false);
-const showActivateModal = ref(false);
-const showDeactivateModal = ref(false);
 const showDeleteModal = ref(false);
+const showStatusModal = ref(false);
 
 const roles = ref([
   { id: 1, nombre: "Supervisor" },
@@ -66,6 +64,8 @@ const getRow = (item) => item?.raw ?? item;
 const getEstado = (item) => getRow(item)?.estado ?? "";
 
 const isActiveStatus = (status) => status === "Activo";
+
+const selectedUserIsActive = computed(() => isActiveStatus(selectedUser.value?.estado));
 
 const fetchUsers = async () => {
   loading.value = true;
@@ -119,9 +119,8 @@ const closeModals = () => {
   showCreateModal.value = false;
   showEditModal.value = false;
   showResetPasswordModal.value = false;
-  showActivateModal.value = false;
-  showDeactivateModal.value = false;
   showDeleteModal.value = false;
+  showStatusModal.value = false;
   selectedUser.value = null;
 };
 
@@ -142,13 +141,7 @@ const openResetPasswordModal = (user) => {
 
 const openToggleStatusModal = (user) => {
   selectedUser.value = getRow(user);
-
-  if (isActiveStatus(getEstado(user))) {
-    showDeactivateModal.value = true;
-    return;
-  }
-
-  showActivateModal.value = true;
+  showStatusModal.value = true;
 };
 
 const openDeleteModal = (user) => {
@@ -411,16 +404,9 @@ onMounted(fetchUsers);
       @confirm="handleResetPassword"
     />
 
-    <UserActivateModal
-      v-model="showActivateModal"
-      :loading="actionLoading"
-      :user="selectedUser"
-      @cancel="closeModals"
-      @confirm="handleToggleStatus"
-    />
-
-    <UserDeactivateModal
-      v-model="showDeactivateModal"
+    <UserStatusModal
+      v-model="showStatusModal"
+      :is-active="selectedUserIsActive"
       :loading="actionLoading"
       :user="selectedUser"
       @cancel="closeModals"

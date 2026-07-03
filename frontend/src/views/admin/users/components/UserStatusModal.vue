@@ -16,6 +16,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  isActive: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'confirm', 'cancel'])
@@ -28,23 +32,31 @@ const dialogModel = computed({
     emit('update:modelValue', value)
   },
 })
+
+const actionText = computed(() => (props.isActive ? 'Desactivar' : 'Activar'))
+const targetStatusText = computed(() => (props.isActive ? 'desactivado' : 'activado'))
+const accessText = computed(() => (
+  props.isActive ? ' quitandole el acceso al sistema' : ''
+))
 </script>
 
 <template>
   <BaseModal
     v-model="dialogModel"
-    accept-text="Activar"
+    :accept-text="actionText"
     cancel-text="Cancelar"
     :loading="loading"
     max-width="600"
-    title="Activar usuario"
+    :title="`${actionText} usuario`"
     @accept="$emit('confirm', user)"
     @cancel="$emit('cancel')"
     @close="$emit('cancel')"
   >
     <div class="text-center text-secondary font-weight-bold d-flex flex-column ga-5">
-      <p>Esta acción cambiara el estado del usuario a activado</p>
-      <p>¿Desea activar el estado del usuario a activo?</p>
+      <p>
+        Esta accion cambiara el estado del usuario a {{ targetStatusText }}{{ accessText }}
+      </p>
+      <p>¿Esta seguro de cambiar el estado del usuario?</p>
     </div>
   </BaseModal>
 </template>

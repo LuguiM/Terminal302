@@ -49,6 +49,20 @@ const routes = [
               },
             ],
           },
+          {
+            path: 'catalogos',
+            children: [
+              {
+                path: 'rutas',
+                name: 'admin-routes',
+                component: () => import('@/views/admin/catalogos/RouteCatalogView.vue'),
+                meta: {
+                  requiresAuth: true,
+                  permissionPath: '/admin/catalogos/rutas',
+                },
+              },
+            ],
+          },
         ],
       },
     ],

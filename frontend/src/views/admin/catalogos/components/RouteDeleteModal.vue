@@ -8,7 +8,7 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  user: {
+  route: {
     type: Object,
     default: null,
   },
@@ -33,18 +33,20 @@ const dialogModel = computed({
 <template>
   <BaseModal
     v-model="dialogModel"
-    accept-text="Desactivar"
+    accept-text="Eliminar"
     cancel-text="Cancelar"
     :loading="loading"
     max-width="600"
-    title="Desactivar usuario"
-    @accept="$emit('confirm', user)"
+    title="Eliminar ruta"
+    @accept="$emit('confirm', route)"
     @cancel="$emit('cancel')"
     @close="$emit('cancel')"
   >
     <div class="text-center text-secondary font-weight-bold d-flex flex-column ga-5">
-      <p>Esta acción cambiara el estado del usuario a desactivado quitandole el acceso al sistema</p>
-      <p>¿Esta seguro de cambiar el estado del usuario?</p>
+      <p>
+        Esta accion eliminara la ruta, asegurese que no este asociada a operadores de tranporte antes de proceder
+      </p>
+      <p>¿Desea continuar con la eliminacion de la ruta?</p>
     </div>
   </BaseModal>
 </template>
