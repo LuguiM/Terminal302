@@ -18,7 +18,7 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $user = User::query()
-            ->with(['role', 'estado'])
+            ->with(['role', 'estado', 'operador'])
             ->where('email', $request->input('email'))
             ->first();
 
@@ -39,6 +39,7 @@ class AuthController extends Controller
         return response()->json([
             'token_type' => 'Bearer',
             'access_token' => $token,
+            'requires_operator_registration' => $this->requiresOperatorRegistration($user),
             'user' => new UserResource($user),
         ]);
     }
@@ -61,12 +62,6 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        if (! Hash::check((string) $request->input('current_password'), $user->password)) {
-            throw ValidationException::withMessages([
-                'current_password' => ['La contrasena actual no es valida.'],
-            ]);
-        }
-
         $user->forceFill([
             'password' => Hash::make((string) $request->input('password')),
             'must_change_password' => false,
@@ -76,5 +71,11 @@ class AuthController extends Controller
             'message' => 'Contrasena actualizada correctamente.',
             'user' => new UserResource($user->fresh(['role', 'estado'])),
         ]);
+    }
+
+    private function requiresOperatorRegistration(User $user): bool
+    {
+        return mb_strtolower((string) $user->role?->nombre) === 'empresario'
+            && $user->operador === null;
     }
 }

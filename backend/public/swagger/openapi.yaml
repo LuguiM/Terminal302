@@ -2409,6 +2409,7 @@ components:
       required:
         - token_type
         - access_token
+        - requires_operator_registration
         - user
       properties:
         token_type:
@@ -2417,6 +2418,10 @@ components:
         access_token:
           type: string
           example: 1|token-generado-por-sanctum
+        requires_operator_registration:
+          type: boolean
+          description: true solo cuando el usuario tiene rol empresario y aun no tiene operador registrado.
+          example: false
         user:
           $ref: '#/components/schemas/User'
     ChangeInitialPasswordResponse:
