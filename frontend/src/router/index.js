@@ -41,7 +41,7 @@ const routes = [
               {
                 path: 'usuarios',
                 name: 'admin-users',
-                component: () => import('@/views/users/UserManagementView.vue'),
+                component: () => import('@/views/admin/users/UserManagementView.vue'),
                 meta: {
                   requiresAuth: true,
                   permissionPath: '/admin/gestiones/usuarios',

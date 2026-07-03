@@ -12,12 +12,12 @@ import {
   toggleUserStatus,
   updateUser,
 } from "@/services/userService";
-import UserActivateModal from "@/views/users/components/UserActivateModal.vue";
-import UserCreateModal from "@/views/users/components/UserCreateModal.vue";
-import UserDeactivateModal from "@/views/users/components/UserDeactivateModal.vue";
-import UserDeleteModal from "@/views/users/components/UserDeleteModal.vue";
-import UserEditModal from "@/views/users/components/UserEditModal.vue";
-import UserResetPasswordModal from "@/views/users/components/UserResetPasswordModal.vue";
+import UserActivateModal from "@/views/admin/users/components/UserActivateModal.vue";
+import UserCreateModal from "@/views/admin/users/components/UserCreateModal.vue";
+import UserDeactivateModal from "@/views/admin/users/components/UserDeactivateModal.vue";
+import UserDeleteModal from "@/views/admin/users/components/UserDeleteModal.vue";
+import UserEditModal from "@/views/admin/users/components/UserEditModal.vue";
+import UserResetPasswordModal from "@/views/admin/users/components/UserResetPasswordModal.vue";
 
 const users = ref([]);
 const loading = ref(false);
