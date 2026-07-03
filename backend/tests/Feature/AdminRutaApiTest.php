@@ -48,6 +48,26 @@ class AdminRutaApiTest extends TestCase
             ->assertJsonPath('pagination.per_page', 15);
     }
 
+    public function test_admin_can_search_routes_by_code_or_name(): void
+    {
+        $admin = $this->createUser('administrador', 'admin@example.test');
+        $this->createRuta('R-001', 'Centro - Periferico');
+        $this->createRuta('R-002', 'Estacion - Hospital');
+        $this->createRuta('EXP-01', 'Ruta expresa');
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/admin/rutas?search=R-001')
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('rutas.0.ruta', 'R-001');
+
+        $this->getJson('/api/admin/rutas?search=Hospital')
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('rutas.0.denominacion', 'Estacion - Hospital');
+    }
+
     public function test_admin_can_create_route_and_active_status_is_assigned(): void
     {
         $admin = $this->createUser('administrador', 'admin@example.test');
