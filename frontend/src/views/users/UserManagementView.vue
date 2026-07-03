@@ -4,7 +4,20 @@ import { computed, onMounted, ref } from "vue";
 import AppDataTable from "@/components/common/AppDataTable.vue";
 import PageTitle from "@/components/common/PageTitle.vue";
 import StatusChip from "@/components/common/StatusChip.vue";
-import { getUsers } from "@/services/userService";
+import { notify } from "@/services/notifyService";
+import {
+  createUser,
+  getUsers,
+  resetUserPassword,
+  toggleUserStatus,
+  updateUser,
+} from "@/services/userService";
+import UserActivateModal from "@/views/users/components/UserActivateModal.vue";
+import UserCreateModal from "@/views/users/components/UserCreateModal.vue";
+import UserDeactivateModal from "@/views/users/components/UserDeactivateModal.vue";
+import UserDeleteModal from "@/views/users/components/UserDeleteModal.vue";
+import UserEditModal from "@/views/users/components/UserEditModal.vue";
+import UserResetPasswordModal from "@/views/users/components/UserResetPasswordModal.vue";
 
 const users = ref([]);
 const loading = ref(false);
@@ -14,6 +27,23 @@ const page = ref(1);
 const perPage = ref(15);
 const total = ref(0);
 const lastPage = ref(1);
+const selectedUser = ref(null);
+const actionLoading = ref(false);
+
+const showCreateModal = ref(false);
+const showEditModal = ref(false);
+const showResetPasswordModal = ref(false);
+const showActivateModal = ref(false);
+const showDeactivateModal = ref(false);
+const showDeleteModal = ref(false);
+
+const roles = ref([
+  { id: 1, nombre: "Supervisor" },
+  { id: 2, nombre: "Administrador" },
+  { id: 3, nombre: "Operador" },
+  { id: 4, nombre: "Pasajero" },
+  { id: 5, nombre: "Conductor" },
+]);
 
 const usersTableHeaders = [
   { title: "Nombre", key: "name", sortable: false },
@@ -85,24 +115,115 @@ const handlePerPageChange = (value) => {
   fetchUsers();
 };
 
-const handleCreateUser = () => {
-  // TODO: abrir modal o navegar a formulario cuando se implemente creacion de usuarios.
+const closeModals = () => {
+  showCreateModal.value = false;
+  showEditModal.value = false;
+  showResetPasswordModal.value = false;
+  showActivateModal.value = false;
+  showDeactivateModal.value = false;
+  showDeleteModal.value = false;
+  selectedUser.value = null;
 };
 
-const handleEditUser = () => {
-  // TODO: abrir modal o navegar a formulario cuando se implemente edicion de usuarios.
+const openCreateModal = () => {
+  selectedUser.value = null;
+  showCreateModal.value = true;
 };
 
-const handleResetCredentials = () => {
-  // TODO: abrir modal de confirmacion cuando se implemente cambio de credenciales.
+const openEditModal = (user) => {
+  selectedUser.value = getRow(user);
+  showEditModal.value = true;
 };
 
-const handleToggleStatus = () => {
-  // TODO: abrir modal de confirmacion cuando se implemente activar/desactivar usuarios.
+const openResetPasswordModal = (user) => {
+  selectedUser.value = getRow(user);
+  showResetPasswordModal.value = true;
+};
+
+const openToggleStatusModal = (user) => {
+  selectedUser.value = getRow(user);
+
+  if (isActiveStatus(getEstado(user))) {
+    showDeactivateModal.value = true;
+    return;
+  }
+
+  showActivateModal.value = true;
+};
+
+const openDeleteModal = (user) => {
+  selectedUser.value = getRow(user);
+  showDeleteModal.value = true;
+};
+
+const handleCreateUser = async (payload) => {
+  actionLoading.value = true;
+
+  try {
+    const { data } = await createUser(payload);
+    notify.success(data.message || "Usuario creado correctamente.");
+    closeModals();
+    await fetchUsers();
+  } finally {
+    actionLoading.value = false;
+  }
+};
+
+const handleEditUser = async (payload) => {
+  actionLoading.value = true;
+
+  try {
+    const { data } = await updateUser(payload.id, {
+      name: payload.name,
+      email: payload.email,
+      role_id: payload.role_id,
+    });
+    notify.success(data.message || "Usuario actualizado correctamente.");
+    closeModals();
+    await fetchUsers();
+  } finally {
+    actionLoading.value = false;
+  }
+};
+
+const handleResetPassword = async () => {
+  if (!selectedUser.value?.id) {
+    return;
+  }
+
+  actionLoading.value = true;
+
+  try {
+    const { data } = await resetUserPassword(selectedUser.value.id);
+    notify.success(data.message || "Contraseña restablecida correctamente.");
+    closeModals();
+    await fetchUsers();
+  } finally {
+    actionLoading.value = false;
+  }
+};
+
+const handleToggleStatus = async () => {
+  if (!selectedUser.value?.id) {
+    return;
+  }
+
+  actionLoading.value = true;
+
+  try {
+    const { data } = await toggleUserStatus(selectedUser.value.id);
+    notify.success(data.message || "Estado del usuario actualizado correctamente.");
+    closeModals();
+    await fetchUsers();
+  } finally {
+    actionLoading.value = false;
+  }
 };
 
 const handleDeleteUser = () => {
-  // TODO: abrir modal de confirmacion cuando se implemente eliminacion de usuarios.
+  // TODO: conectar cuando exista DELETE /admin/users/{id} en el backend.
+  notify.warning("La eliminación de usuarios todavía no tiene endpoint disponible.");
+  closeModals();
 };
 
 onMounted(fetchUsers);
@@ -161,7 +282,7 @@ onMounted(fetchUsers);
           color="primary"
           prepend-icon="mdi-plus"
           rounded="lg"
-          @click="handleCreateUser"
+          @click="openCreateModal"
         >
           Crear usuario
         </v-btn>
@@ -205,7 +326,7 @@ onMounted(fetchUsers);
                 density="comfortable"
                 icon="mdi-pencil-box-outline"
                 variant="text"
-                @click="handleEditUser(item)"
+                @click="openEditModal(item)"
               />
             </template>
           </v-tooltip>
@@ -219,7 +340,7 @@ onMounted(fetchUsers);
                 density="comfortable"
                 icon="mdi-key-outline"
                 variant="text"
-                @click="handleResetCredentials(item)"
+                @click="openResetPasswordModal(item)"
               />
             </template>
           </v-tooltip>
@@ -243,7 +364,7 @@ onMounted(fetchUsers);
                     : 'mdi-check-circle-outline'
                 "
                 variant="text"
-                @click="handleToggleStatus(getRow(item))"
+                @click="openToggleStatusModal(item)"
               />
             </template>
           </v-tooltip>
@@ -257,13 +378,62 @@ onMounted(fetchUsers);
                 density="comfortable"
                 icon="mdi-trash-can-outline"
                 variant="text"
-                @click="handleDeleteUser(item)"
+                @click="openDeleteModal(item)"
               />
             </template>
           </v-tooltip>
         </div>
       </template>
     </AppDataTable>
+
+    <UserCreateModal
+      v-model="showCreateModal"
+      :loading="actionLoading"
+      :roles="roles"
+      @cancel="closeModals"
+      @submit="handleCreateUser"
+    />
+
+    <UserEditModal
+      v-model="showEditModal"
+      :loading="actionLoading"
+      :roles="roles"
+      :user="selectedUser"
+      @cancel="closeModals"
+      @submit="handleEditUser"
+    />
+
+    <UserResetPasswordModal
+      v-model="showResetPasswordModal"
+      :loading="actionLoading"
+      :user="selectedUser"
+      @cancel="closeModals"
+      @confirm="handleResetPassword"
+    />
+
+    <UserActivateModal
+      v-model="showActivateModal"
+      :loading="actionLoading"
+      :user="selectedUser"
+      @cancel="closeModals"
+      @confirm="handleToggleStatus"
+    />
+
+    <UserDeactivateModal
+      v-model="showDeactivateModal"
+      :loading="actionLoading"
+      :user="selectedUser"
+      @cancel="closeModals"
+      @confirm="handleToggleStatus"
+    />
+
+    <UserDeleteModal
+      v-model="showDeleteModal"
+      :loading="actionLoading"
+      :user="selectedUser"
+      @cancel="closeModals"
+      @confirm="handleDeleteUser"
+    />
   </v-container>
 </template>
 

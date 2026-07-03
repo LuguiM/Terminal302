@@ -7,7 +7,7 @@ const defaultOptions = {
   hideProgressBar: false,
   pauseOnFocusLoss: true,
   pauseOnHover: true,
-  position: toast.POSITION.BOTTOM_RIGHT,
+  position: toast.POSITION.TOP_RIGHT,
   theme: 'colored',
 }
 
