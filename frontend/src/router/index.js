@@ -62,6 +62,16 @@ const routes = [
     },
   },
   {
+    path: '/cambiar-contrasena',
+    name: 'change-password',
+    component: () => import('@/views/auth/ChangePasswordView.vue'),
+    meta: {
+      requiresAuth: true,
+      skipMenuPermission: true,
+      isPasswordChangeRoute: true,
+    },
+  },
+  {
     path: '/403',
     name: 'forbidden',
     component: () => import('@/views/errors/ForbiddenView.vue'),
@@ -95,7 +105,18 @@ router.beforeEach(async (to) => {
   }
 
   if (to.name === 'login' && accessToken) {
-    return { name: 'inicio' }
+    return authStore.mustChangePassword
+      ? { name: 'change-password' }
+      : { name: 'inicio' }
+  }
+
+  if (
+    accessToken
+    && authStore.mustChangePassword
+    && !to.meta.isPasswordChangeRoute
+    && to.name !== 'login'
+  ) {
+    return { name: 'change-password' }
   }
 
   if (!to.meta.requiresAuth || to.meta.skipMenuPermission) {

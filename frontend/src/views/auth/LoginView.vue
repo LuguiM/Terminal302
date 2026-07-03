@@ -40,7 +40,9 @@ const submitLogin = async () => {
     }
 
     notify.success('Inicio de sesion correcto.')
-    router.push({ name: 'inicio' })
+    router.push({
+      name: authStore.mustChangePassword ? 'change-password' : 'inicio',
+    })
   } catch {
     password.value = ''
   }
