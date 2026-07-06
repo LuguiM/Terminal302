@@ -77,6 +77,15 @@ const routes = [
               permissionPath: '/operador/rutas',
             },
           },
+          {
+            path: 'unidades',
+            name: 'operator-buses',
+            component: () => import('@/views/operators/buses/OperatorBusesView.vue'),
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/operador/unidades',
+            },
+          },
         ],
       },
     ],
