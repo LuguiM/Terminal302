@@ -12,6 +12,8 @@ class OperadorResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $attributes = $this->resource->getAttributes();
+
         return [
             'id' => $this->id,
             'user' => $this->whenLoaded('user', fn (): array => [
@@ -37,6 +39,14 @@ class OperadorResource extends JsonResource
                 'nombre' => $this->estado?->nombre,
             ],
             'motivo_desactivacion' => $this->motivo_desactivacion,
+            'rutas_count' => $this->when(
+                array_key_exists('operador_rutas_count', $attributes),
+                (int) ($this->operador_rutas_count ?? 0),
+            ),
+            'buses_count' => $this->when(
+                array_key_exists('buses_count', $attributes),
+                (int) ($this->buses_count ?? 0),
+            ),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

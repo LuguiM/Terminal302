@@ -3,8 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Estado;
+use App\Models\Bus;
 use App\Models\Operador;
+use App\Models\OperadorEmpleado;
+use App\Models\OperadorRuta;
 use App\Models\Role;
+use App\Models\Ruta;
+use App\Models\TipoBus;
 use App\Models\TipoOperador;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -144,6 +149,9 @@ class OperadorApiTest extends TestCase
         $admin = $this->createUser('administrador', 'admin@example.test');
         $empresario = $this->createUser('empresario', 'empresario@example.test');
         $operador = $this->createOperador($empresario);
+        $ruta = $this->createRuta('R-001');
+        $this->createOperadorRuta($operador, $ruta);
+        $this->createBus($operador, $ruta);
 
         Sanctum::actingAs($admin);
 
@@ -151,12 +159,81 @@ class OperadorApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('pagination.total', 1)
             ->assertJsonPath('operadores.0.nombre_comercial', $operador->nombre_comercial)
-            ->assertJsonPath('operadores.0.user.email', $empresario->email);
+            ->assertJsonPath('operadores.0.user.email', $empresario->email)
+            ->assertJsonPath('operadores.0.rutas_count', 1)
+            ->assertJsonPath('operadores.0.buses_count', 1);
 
         $this->getJson("/api/admin/operadores/{$operador->id}")
             ->assertOk()
             ->assertJsonPath('data.nombre_comercial', $operador->nombre_comercial)
-            ->assertJsonPath('data.user.email', $empresario->email);
+            ->assertJsonPath('data.user.email', $empresario->email)
+            ->assertJsonMissingPath('data.empleados')
+            ->assertJsonMissingPath('data.buses')
+            ->assertJsonMissingPath('data.operador_rutas');
+    }
+
+    public function test_admin_can_search_operators(): void
+    {
+        $admin = $this->createUser('administrador', 'admin@example.test');
+        $keniaUser = $this->createUser('empresario', 'kenia@example.test');
+        $otherUser = $this->createUser('empresario', 'other@example.test');
+        $kenia = $this->createOperador($keniaUser);
+        $kenia->forceFill([
+            'nombre_comercial' => 'Transportes Kenia',
+            'representante_legal' => 'Oscar Mauricio',
+            'telefono' => '1555-0101',
+        ])->save();
+        $this->createOperador($otherUser);
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/admin/operadores?search=kenia')
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('operadores.0.nombre_comercial', 'Transportes Kenia');
+
+        $this->getJson('/api/admin/operadores?search=oscar')
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('operadores.0.id', $kenia->id);
+    }
+
+    public function test_admin_can_load_operator_detail_lists_on_demand(): void
+    {
+        $admin = $this->createUser('administrador', 'admin@example.test');
+        $empresario = $this->createUser('empresario', 'empresario@example.test');
+        $otherEmpresario = $this->createUser('empresario', 'other@example.test');
+        $operador = $this->createOperador($empresario);
+        $otherOperador = $this->createOperador($otherEmpresario);
+        $employeeUser = $this->createUser('validador', 'validator@example.test');
+        $ruta = $this->createRuta('R-010');
+        $otherRuta = $this->createRuta('R-020');
+        $this->createEmployee($operador, $employeeUser);
+        $this->createOperadorRuta($operador, $ruta);
+        $this->createBus($operador, $ruta);
+        $this->createOperadorRuta($otherOperador, $otherRuta);
+        $this->createBus($otherOperador, $otherRuta, 'AB-222');
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson("/api/admin/operadores/{$operador->id}/empleados")
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('empleados.0.email', 'validator@example.test');
+
+        $this->getJson("/api/admin/operadores/{$operador->id}/buses")
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('buses.0.placa', 'AB-111')
+            ->assertJsonPath('buses.0.ruta.ruta', 'R-010');
+
+        $this->getJson("/api/admin/operadores/{$operador->id}/rutas")
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('operador_rutas.0.ruta', 'R-010');
+
+        $this->deleteJson("/api/admin/operadores/{$operador->id}")
+            ->assertMethodNotAllowed();
     }
 
     public function test_admin_deactivates_operator_with_required_reason_and_empresario_keeps_login(): void
@@ -346,5 +423,49 @@ class OperadorApiTest extends TestCase
     private function estado(int $id, string $nombre): Estado
     {
         return Estado::query()->firstOrCreate(['id' => $id], ['nombre' => $nombre]);
+    }
+
+    private function createRuta(string $code): Ruta
+    {
+        return Ruta::query()->create([
+            'ruta' => $code,
+            'denominacion' => "Ruta {$code}",
+            'tarifa' => 1.25,
+            'estado_id' => $this->estado(Estado::ACTIVO_ID, 'Activo')->id,
+        ]);
+    }
+
+    private function createOperadorRuta(Operador $operador, Ruta $ruta): OperadorRuta
+    {
+        return OperadorRuta::query()->create([
+            'operador_id' => $operador->id,
+            'ruta_id' => $ruta->id,
+            'estado_id' => $this->estado(Estado::ACTIVO_ID, 'Activo')->id,
+        ]);
+    }
+
+    private function createBus(Operador $operador, Ruta $ruta, string $placa = 'AB-111'): Bus
+    {
+        $tipoBus = TipoBus::query()->firstOrCreate(['nombre' => 'bus']);
+
+        return Bus::query()->create([
+            'operador_id' => $operador->id,
+            'ruta_id' => $ruta->id,
+            'placa' => $placa,
+            'marca' => 'Mercedes-Benz',
+            'nombre_unidad' => 'Unidad '.$placa,
+            'capacidad' => 50,
+            'tipo_bus_id' => $tipoBus->id,
+            'estado_id' => $this->estado(Estado::ACTIVO_ID, 'Activo')->id,
+        ]);
+    }
+
+    private function createEmployee(Operador $operador, User $user): OperadorEmpleado
+    {
+        return OperadorEmpleado::query()->create([
+            'operador_id' => $operador->id,
+            'user_id' => $user->id,
+            'estado_id' => $this->estado(Estado::ACTIVO_ID, 'Activo')->id,
+        ]);
     }
 }

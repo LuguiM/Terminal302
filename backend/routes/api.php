@@ -99,6 +99,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
             Route::get('/operadores', [AdminOperadorController::class, 'index']);
             Route::get('/operadores/{operador}', [AdminOperadorController::class, 'show']);
+            Route::get('/operadores/{operador}/empleados', [AdminOperadorController::class, 'empleados']);
+            Route::get('/operadores/{operador}/buses', [AdminOperadorController::class, 'buses']);
+            Route::get('/operadores/{operador}/rutas', [AdminOperadorController::class, 'rutas']);
             Route::patch('/operadores/{operador}/toggle-status', [AdminOperadorController::class, 'toggleStatus']);
 
             Route::get('/rutas', [AdminRutaController::class, 'index']);
