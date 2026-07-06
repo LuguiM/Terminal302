@@ -47,6 +47,24 @@ const routes = [
                   permissionPath: '/admin/gestiones/usuarios',
                 },
               },
+              {
+                path: 'operadores',
+                name: 'admin-operators',
+                component: () => import('@/views/admin/operators/AdminOperatorManagementView.vue'),
+                meta: {
+                  requiresAuth: true,
+                  permissionPath: '/admin/gestiones/operadores',
+                },
+              },
+              {
+                path: 'operadores/:id',
+                name: 'admin-operator-detail',
+                component: () => import('@/views/admin/operators/AdminOperatorDetailView.vue'),
+                meta: {
+                  requiresAuth: true,
+                  permissionPath: '/admin/gestiones/operadores',
+                },
+              },
             ],
           },
           {
