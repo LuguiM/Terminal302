@@ -36,6 +36,20 @@ class HorarioApiTest extends TestCase
             ->assertJsonCount(1, 'rutas');
     }
 
+    public function test_admin_can_list_days_for_schedule_form(): void
+    {
+        $admin = $this->createUser('administrador', 'admin@example.test');
+        $this->createDia(2, 'Martes');
+        $this->createDia(1, 'Lunes');
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/admin/horarios/dias')
+            ->assertOk()
+            ->assertJsonPath('dias.0.nombre', 'Lunes')
+            ->assertJsonPath('dias.1.nombre', 'Martes');
+    }
+
     public function test_admin_can_list_days_and_schedules_for_route_and_day(): void
     {
         [$admin, $ruta, $operador, $bus, $dia] = $this->createSchedulableContext();
@@ -223,6 +237,15 @@ class HorarioApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('rutas.0.id', $ruta->id)
             ->assertJsonCount(1, 'rutas');
+
+        $this->getJson('/api/operador/horarios/rutas?search=Usu')
+            ->assertOk()
+            ->assertJsonPath('rutas.0.id', $ruta->id)
+            ->assertJsonCount(1, 'rutas');
+
+        $this->getJson('/api/operador/horarios/rutas?search=San Miguel')
+            ->assertOk()
+            ->assertJsonCount(0, 'rutas');
 
         $this->getJson("/api/operador/horarios/rutas/{$ruta->id}")
             ->assertOk()

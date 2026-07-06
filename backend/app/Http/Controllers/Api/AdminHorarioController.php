@@ -23,6 +23,17 @@ use Illuminate\Http\Request;
 
 class AdminHorarioController extends Controller
 {
+    public function dias(): JsonResponse
+    {
+        $dias = Dia::query()
+            ->orderBy('orden')
+            ->get();
+
+        return response()->json([
+            'dias' => $this->formatDias($dias),
+        ]);
+    }
+
     public function rutas(Request $request): JsonResponse
     {
         $activeStatus = Estado::activo();

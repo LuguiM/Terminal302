@@ -38,6 +38,14 @@ class OperadorHorarioController extends Controller
                 $query->where('operador_id', $operador->id)
                     ->where('estado_id', $activeStatus->id);
             })
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $search = '%'.$request->string('search')->toString().'%';
+
+                $query->where(function ($query) use ($search): void {
+                    $query->where('ruta', 'like', $search)
+                        ->orWhere('denominacion', 'like', $search);
+                });
+            })
             ->orderBy('ruta')
             ->get();
 

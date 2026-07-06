@@ -123,6 +123,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::patch('/ticket-plantillas/{ticketPlantilla}/toggle-status', [AdminTicketPlantillaController::class, 'toggleStatus']);
             Route::patch('/ticket-plantillas/{ticketPlantilla}/set-default', [AdminTicketPlantillaController::class, 'setDefault']);
 
+            Route::get('/horarios/dias', [AdminHorarioController::class, 'dias']);
             Route::get('/horarios/rutas', [AdminHorarioController::class, 'rutas']);
             Route::get('/horarios/rutas/{ruta}', [AdminHorarioController::class, 'diasPorRuta']);
             Route::get('/horarios/rutas/{ruta}/operadores', [AdminHorarioController::class, 'operadoresPorRuta']);
