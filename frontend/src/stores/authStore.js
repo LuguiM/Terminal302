@@ -64,6 +64,19 @@ export const useAuthStore = defineStore('auth', {
       )
     },
 
+    setUserOperator(operator) {
+      if (!this.user) {
+        return
+      }
+
+      this.user = {
+        ...this.user,
+        operador: operator,
+      }
+
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(this.user))
+    },
+
     async login(credentials) {
       this.loading = true
       this.error = null

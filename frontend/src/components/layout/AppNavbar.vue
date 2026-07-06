@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/authStore'
@@ -9,6 +10,15 @@ const emit = defineEmits(['toggle-sidebar'])
 const router = useRouter()
 const authStore = useAuthStore()
 const menuStore = useMenuStore()
+
+const userName = computed(() => authStore.user?.name ?? 'Usuario')
+const userEmail = computed(() => authStore.user?.email ?? '')
+const operator = computed(() => (
+  authStore.user?.operador
+  ?? authStore.user?.operador_empleado?.operador
+  ?? null
+))
+const operatorName = computed(() => operator.value?.nombre_comercial ?? operator.value?.razon_social ?? '')
 
 const handleLogout = async () => {
   await authStore.logout()
@@ -32,6 +42,34 @@ const handleLogout = async () => {
     />
 
     <v-spacer />
+
+    <div
+      class="d-flex align-center ga-3 me-4 text-primary overflow-hidden flex-shrink-1"
+      style="max-width: min(46vw, 340px);"
+    >
+      <v-avatar
+        color="primary"
+        size="40"
+      >
+        <v-icon
+          color="surface"
+          icon="mdi-account-outline"
+        />
+      </v-avatar>
+
+      <div class="d-flex flex-column overflow-hidden">
+        <span class="text-body-2 font-weight-bold text-truncate">
+          {{ userName }}
+        </span>
+
+        <span
+          v-if="operatorName"
+          class="text-caption text-secondary font-weight-bold text-truncate d-none d-md-block"
+        >
+          {{ operatorName }}
+        </span>
+      </div>
+    </div>
 
     <v-btn
       class="logout-button"

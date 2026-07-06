@@ -54,6 +54,7 @@ const submitRegistration = async (payload) => {
     const resp = await registerOperator(payload);
     if (resp.status === 200 || resp.status === 201) {
       authStore.setRequiresOperatorRegistration(false);
+      authStore.setUserOperator(resp.data?.operador ?? null);
       notify.success("Operador registrado correctamente.");
       router.push({ name: "inicio" });
     }

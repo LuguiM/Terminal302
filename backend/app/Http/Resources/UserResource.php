@@ -24,6 +24,18 @@ class UserResource extends JsonResource
                 'id' => $this->estado?->id,
                 'nombre' => $this->estado?->nombre,
             ],
+            'operador' => $this->whenLoaded('operador', fn (): ?array => $this->operador ? [
+                'id' => $this->operador->id,
+                'nombre_comercial' => $this->operador->nombre_comercial,
+                'razon_social' => $this->operador->razon_social,
+            ] : null),
+            'operador_empleado' => $this->whenLoaded('operadorEmpleado', fn (): ?array => $this->operadorEmpleado ? [
+                'operador' => $this->operadorEmpleado->operador ? [
+                    'id' => $this->operadorEmpleado->operador->id,
+                    'nombre_comercial' => $this->operadorEmpleado->operador->nombre_comercial,
+                    'razon_social' => $this->operadorEmpleado->operador->razon_social,
+                ] : null,
+            ] : null),
             'must_change_password' => $this->must_change_password,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

@@ -18,7 +18,7 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $user = User::query()
-            ->with(['role', 'estado', 'operador'])
+            ->with(['role', 'estado', 'operador', 'operadorEmpleado.operador'])
             ->where('email', $request->input('email'))
             ->first();
 
@@ -55,7 +55,12 @@ class AuthController extends Controller
 
     public function user(Request $request): UserResource
     {
-        return new UserResource($request->user()->load(['role', 'estado']));
+        return new UserResource($request->user()->load([
+            'role',
+            'estado',
+            'operador',
+            'operadorEmpleado.operador',
+        ]));
     }
 
     public function changeInitialPassword(ChangeInitialPasswordRequest $request): JsonResponse
@@ -69,7 +74,12 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Contrasena actualizada correctamente.',
-            'user' => new UserResource($user->fresh(['role', 'estado'])),
+            'user' => new UserResource($user->fresh([
+                'role',
+                'estado',
+                'operador',
+                'operadorEmpleado.operador',
+            ])),
         ]);
     }
 
