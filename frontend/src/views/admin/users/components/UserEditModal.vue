@@ -139,7 +139,7 @@ watch(
         <div class="text-primary font-weight-bold mb-4">
           Seleccionar rol
         </div>
-        <v-row dense>
+        <v-row>
           <v-col
             v-for="role in roles"
             :key="role.id"

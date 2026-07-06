@@ -230,7 +230,7 @@ onMounted(fetchOperator)
     </v-alert>
 
     <template v-if="operator">
-      <v-row class="mt-10 mb-8" dense>
+      <v-row class="mt-10 mb-8">
         <v-col cols="12" md="3">
           <div class="text-secondary font-weight-black mb-2">
             Nombre de empresa

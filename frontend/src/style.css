@@ -101,12 +101,22 @@ body {
   margin-left: 22px;
 }
 
+.navbar-user {
+  cursor: pointer;
+  margin-right: 12px;
+  max-width: min(46vw, 340px);
+}
+
 .logout-button {
   font-size: 0.95rem;
   font-weight: 900;
   margin-right: 18px;
   min-height: 40px;
   text-transform: none;
+}
+
+.logout-icon-button {
+  margin-right: 10px;
 }
 
 .dashboard-main,
@@ -202,6 +212,22 @@ body {
     font-size: 1rem;
     margin-right: 18px;
     min-width: 214px;
+  }
+}
+
+@media (max-width: 599px) {
+  .navbar-menu-button {
+    margin-left: 10px;
+  }
+
+  .navbar-user {
+    margin-right: 8px;
+    max-width: none;
+  }
+
+  .logout-icon-button {
+    height: 50px;
+    width: 50px;
   }
 }
 

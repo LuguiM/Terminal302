@@ -43,36 +43,69 @@ const handleLogout = async () => {
 
     <v-spacer />
 
-    <div
-      class="d-flex align-center ga-3 me-4 text-primary overflow-hidden flex-shrink-1"
-      style="max-width: min(46vw, 340px);"
-    >
-      <v-avatar
-        color="primary"
-        size="40"
-      >
-        <v-icon
-          color="surface"
-          icon="mdi-account-outline"
-        />
-      </v-avatar>
-
-      <div class="d-flex flex-column overflow-hidden">
-        <span class="text-body-2 font-weight-bold text-truncate">
-          {{ userName }}
-        </span>
-
-        <span
-          v-if="operatorName"
-          class="text-caption text-secondary font-weight-bold text-truncate d-none d-md-block"
+    <v-menu location="bottom end">
+      <template #activator="{ props: activatorProps }">
+        <div
+          v-bind="activatorProps"
+          class="navbar-user d-flex align-center ga-3 text-primary overflow-hidden flex-shrink-1"
+          role="button"
         >
-          {{ operatorName }}
-        </span>
-      </div>
-    </div>
+          <v-avatar
+            color="primary"
+            size="40"
+          >
+            <v-icon
+              color="surface"
+              icon="mdi-account-outline"
+            />
+          </v-avatar>
+
+          <div class="d-none d-md-flex flex-column overflow-hidden">
+            <span class="text-body-2 font-weight-bold text-truncate">
+              {{ userName }}
+            </span>
+
+            <span
+              v-if="operatorName"
+              class="text-caption text-secondary font-weight-bold text-truncate"
+            >
+              {{ operatorName }}
+            </span>
+          </div>
+        </div>
+      </template>
+
+      <v-card
+        min-width="260"
+        rounded="lg"
+      >
+        <v-list density="compact">
+          <v-list-item
+            prepend-icon="mdi-account-outline"
+            :subtitle="userEmail"
+            :title="userName"
+          />
+
+          <v-list-item
+            v-if="operatorName"
+            prepend-icon="mdi-domain"
+            :title="operatorName"
+          />
+        </v-list>
+      </v-card>
+    </v-menu>
 
     <v-btn
-      class="logout-button"
+      class="logout-icon-button d-flex d-sm-none"
+      color="error"
+      icon="mdi-logout"
+      rounded="circle"
+      variant="outlined"
+      @click="handleLogout"
+    />
+
+    <v-btn
+      class="logout-button d-none d-sm-inline-flex"
       color="error"
       prepend-icon="mdi-logout"
       rounded="xl"

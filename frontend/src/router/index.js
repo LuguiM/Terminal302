@@ -65,6 +65,24 @@ const routes = [
                   permissionPath: '/admin/gestiones/operadores',
                 },
               },
+              {
+                path: 'horarios',
+                name: 'admin-schedules',
+                component: () => import('@/views/admin/schedules/AdminScheduleRoutesView.vue'),
+                meta: {
+                  requiresAuth: true,
+                  permissionPath: '/admin/gestiones/horarios',
+                },
+              },
+              {
+                path: 'horarios/:rutaId',
+                name: 'admin-schedules-route',
+                component: () => import('@/views/admin/schedules/AdminScheduleRouteManagementView.vue'),
+                meta: {
+                  requiresAuth: true,
+                  permissionPath: '/admin/gestiones/horarios',
+                },
+              },
             ],
           },
           {
@@ -111,6 +129,24 @@ const routes = [
             meta: {
               requiresAuth: true,
               permissionPath: '/operador/empleados',
+            },
+          },
+          {
+            path: 'horarios',
+            name: 'operator-schedules',
+            component: () => import('@/views/operators/schedules/OperatorScheduleRoutesView.vue'),
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/operador/horarios',
+            },
+          },
+          {
+            path: 'horarios/:rutaId',
+            name: 'operator-schedules-route',
+            component: () => import('@/views/operators/schedules/OperatorScheduleRouteView.vue'),
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/operador/horarios',
             },
           },
         ],
