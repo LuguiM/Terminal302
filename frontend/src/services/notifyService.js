@@ -2,7 +2,7 @@ import { toast } from 'vue3-toastify'
 
 const defaultOptions = {
   autoClose: 4500,
-  clearOnUrlChange: true,
+  clearOnUrlChange: false,
   closeOnClick: true,
   hideProgressBar: false,
   pauseOnFocusLoss: true,

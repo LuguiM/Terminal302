@@ -55,16 +55,12 @@ const submitRegistration = async (payload) => {
     if (resp.status === 200 || resp.status === 201) {
       authStore.setRequiresOperatorRegistration(false);
       notify.success("Operador registrado correctamente.");
-      setTimeout(() => {
-        router.push({ name: "inicio" });
-      }, 2000);
+      router.push({ name: "inicio" });
     }
   } catch (requestError) {
     error.value = getErrorMessage(requestError);
   } finally {
-    setTimeout(() => {
-      loading.value = false;
-    }, 2000);
+    loading.value = false;
   }
 };
 
