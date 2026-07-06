@@ -86,6 +86,15 @@ const routes = [
               permissionPath: '/operador/unidades',
             },
           },
+          {
+            path: 'empleados',
+            name: 'operator-employees',
+            component: () => import('@/views/operators/employees/OperatorEmployeesView.vue'),
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/operador/empleados',
+            },
+          },
         ],
       },
     ],
