@@ -70,6 +70,11 @@ class User extends Authenticatable
         return $this->hasOne(Operador::class);
     }
 
+    public function operadorEmpleado(): HasOne
+    {
+        return $this->hasOne(OperadorEmpleado::class);
+    }
+
     public function ventasHorariosCerradas(): HasMany
     {
         return $this->hasMany(VentaHorario::class, 'cerrada_por');

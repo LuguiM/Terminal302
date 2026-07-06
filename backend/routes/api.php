@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BusController;
 use App\Http\Controllers\Api\MeMenuRutaController;
 use App\Http\Controllers\Api\OperadorController;
+use App\Http\Controllers\Api\OperadorEmpleadoController;
 use App\Http\Controllers\Api\OperadorHorarioController;
 use App\Http\Controllers\Api\OperadorRutaController;
 use App\Http\Controllers\Api\PublicRutaController;
@@ -42,6 +43,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::middleware('operator.active')->group(function (): void {
                 Route::get('/me', [OperadorController::class, 'me']);
                 Route::put('/{operador}', [OperadorController::class, 'update']);
+
+                Route::get('/empleados', [OperadorEmpleadoController::class, 'index']);
+                Route::post('/empleados', [OperadorEmpleadoController::class, 'store']);
+                Route::put('/empleados/{empleado}', [OperadorEmpleadoController::class, 'update']);
+                Route::patch('/empleados/{empleado}/toggle-status', [OperadorEmpleadoController::class, 'toggleStatus']);
 
                 Route::get('/rutas-disponibles', [OperadorRutaController::class, 'rutasDisponibles']);
                 Route::get('/rutas', [OperadorRutaController::class, 'index']);

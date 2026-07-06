@@ -8,6 +8,7 @@ use App\Http\Resources\TicketResource;
 use App\Http\Resources\ValidacionResource;
 use App\Models\Estado;
 use App\Models\Operador;
+use App\Models\User;
 use App\Models\Ticket;
 use App\Models\Validacion;
 use Carbon\CarbonImmutable;
@@ -21,7 +22,14 @@ class ValidadorTicketController extends Controller
     public function validar(ValidarTicketRequest $request): JsonResponse
     {
         $validador = $request->user();
-        $operador = $validador?->operador()->first();
+
+        if ((int) $validador?->estado_id !== Estado::ACTIVO_ID) {
+            return response()->json([
+                'message' => 'El usuario no esta activo.',
+            ], 403);
+        }
+
+        $operador = $this->operadorForValidador($validador);
 
         if (! $operador) {
             return response()->json([
@@ -103,6 +111,16 @@ class ValidadorTicketController extends Controller
             'ticket' => new TicketResource($result['ticket']),
             'validacion' => new ValidacionResource($result['validacion']),
         ]);
+    }
+
+    private function operadorForValidador(?User $validador): ?Operador
+    {
+        return $validador
+            ?->operadorEmpleado()
+            ->with('operador')
+            ->first()
+            ?->operador
+            ?? $validador?->operador()->first();
     }
 
     private function validateTicketForOperator(

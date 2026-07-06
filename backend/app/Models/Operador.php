@@ -55,4 +55,9 @@ class Operador extends Model
     {
         return $this->hasMany(Horario::class);
     }
+
+    public function empleados(): HasMany
+    {
+        return $this->hasMany(OperadorEmpleado::class);
+    }
 }

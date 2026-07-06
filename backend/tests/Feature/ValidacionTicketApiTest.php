@@ -7,6 +7,7 @@ use App\Models\Dia;
 use App\Models\Estado;
 use App\Models\Horario;
 use App\Models\Operador;
+use App\Models\OperadorEmpleado;
 use App\Models\OperadorRuta;
 use App\Models\Role;
 use App\Models\Ruta;
@@ -68,6 +69,29 @@ class ValidacionTicketApiTest extends TestCase
             'resultado' => 'valido',
             'observacion' => 'Abordaje confirmado',
         ]);
+    }
+
+    public function test_employee_validator_can_validate_ticket_from_assigned_operator(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-06-30 09:15:00', 'America/El_Salvador'));
+
+        $empresario = $this->createUser('empresario', 'empresario@example.test');
+        $operador = $this->createOperador($empresario);
+        $validador = $this->createUser('validador', 'empleado-validador@example.test');
+        $this->createOperadorEmpleado($operador, $validador);
+        $ticket = $this->createTicketForOperador($operador, 'TKT-EMPLOYEE-001');
+
+        Sanctum::actingAs($validador);
+
+        $this->postJson('/api/validador/tickets/validar', [
+            'codigo_ticket' => 'TKT-EMPLOYEE-001',
+            'observacion' => 'Validado en puerta',
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Ticket validado correctamente.')
+            ->assertJsonPath('ticket.id', $ticket->id)
+            ->assertJsonPath('ticket.estado.nombre', 'Validado')
+            ->assertJsonPath('validacion.validador.id', $validador->id);
     }
 
     public function test_validador_cannot_validate_same_ticket_twice(): void
@@ -330,6 +354,15 @@ class ValidacionTicketApiTest extends TestCase
         return OperadorRuta::query()->create([
             'operador_id' => $operador->id,
             'ruta_id' => $ruta->id,
+            'estado_id' => Estado::ACTIVO_ID,
+        ]);
+    }
+
+    private function createOperadorEmpleado(Operador $operador, User $user): OperadorEmpleado
+    {
+        return OperadorEmpleado::query()->create([
+            'operador_id' => $operador->id,
+            'user_id' => $user->id,
             'estado_id' => Estado::ACTIVO_ID,
         ]);
     }

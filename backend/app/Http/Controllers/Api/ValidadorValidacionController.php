@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ValidacionResource;
+use App\Models\Estado;
 use App\Models\Validacion;
 use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
@@ -14,6 +15,12 @@ class ValidadorValidacionController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        if ((int) $request->user()?->estado_id !== Estado::ACTIVO_ID) {
+            return response()->json([
+                'message' => 'El usuario no esta activo.',
+            ], 403);
+        }
+
         $perPage = min(max($request->integer('per_page', 15), 1), 50);
 
         $validaciones = Validacion::query()
