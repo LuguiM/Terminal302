@@ -49,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
                 Route::patch('/rutas/{operadorRuta}/toggle-status', [OperadorRutaController::class, 'toggleStatus']);
                 Route::delete('/rutas/{operadorRuta}', [OperadorRutaController::class, 'destroy']);
 
+                Route::get('/tipo-buses', [BusController::class, 'tipoBuses']);
                 Route::get('/buses', [BusController::class, 'index']);
                 Route::post('/buses', [BusController::class, 'store']);
                 Route::put('/buses/{bus}', [BusController::class, 'update']);

@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Bus\StoreBusRequest;
 use App\Http\Requests\Bus\UpdateBusRequest;
 use App\Http\Resources\BusResource;
+use App\Http\Resources\TipoBusResource;
 use App\Models\Bus;
 use App\Models\Estado;
 use App\Models\Operador;
 use App\Models\OperadorRuta;
 use App\Models\Ruta;
+use App\Models\TipoBus;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -45,6 +47,23 @@ class BusController extends Controller
             ->paginate($perPage);
 
         return ApiResponse::paginated($buses, 'buses', BusResource::class);
+    }
+
+    public function tipoBuses(Request $request): JsonResponse
+    {
+        $operador = $this->authenticatedOperador($request);
+
+        if (! $operador) {
+            return $this->missingOperadorResponse();
+        }
+
+        $tipoBuses = TipoBus::query()
+            ->orderBy('nombre')
+            ->get();
+
+        return response()->json([
+            'tipo_buses' => TipoBusResource::collection($tipoBuses),
+        ]);
     }
 
     public function store(StoreBusRequest $request): JsonResponse

@@ -14,6 +14,7 @@ class OperadorRutaResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'ruta_id' => $this->ruta?->id,
             'ruta' => $this->ruta?->ruta,
             'denominacion' => $this->ruta?->denominacion,
             'tarifa' => $this->ruta?->tarifa,

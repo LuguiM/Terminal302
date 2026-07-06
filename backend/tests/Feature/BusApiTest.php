@@ -31,6 +31,29 @@ class BusApiTest extends TestCase
             ->assertJsonPath('message', 'El empresario autenticado no tiene operador registrado.');
     }
 
+    public function test_empresario_can_list_bus_types_for_form_selectors(): void
+    {
+        $empresario = $this->createUser('empresario', 'empresario@example.test');
+        $this->createOperador($empresario);
+        $this->createTipoBus('bus');
+        $this->createTipoBus('microbus');
+
+        Sanctum::actingAs($empresario);
+
+        $this->getJson('/api/operador/tipo-buses')
+            ->assertOk()
+            ->assertJsonMissingPath('pagination')
+            ->assertJsonStructure([
+                'tipo_buses' => [
+                    [
+                        'id',
+                        'nombre',
+                    ],
+                ],
+            ])
+            ->assertJsonCount(2, 'tipo_buses');
+    }
+
     public function test_empresario_can_list_own_buses_paginated_with_filters(): void
     {
         $empresario = $this->createUser('empresario', 'empresario@example.test');
@@ -152,7 +175,7 @@ class BusApiTest extends TestCase
 
         $this->postJson('/api/operador/buses', $this->busPayload([
             'ruta_id' => $inactiveRuta->id,
-            'placa' => 'CD-456',
+            'placa' => 'AB-456',
             'tipo_bus_id' => $tipoBus->id,
         ]))
             ->assertUnprocessable()
@@ -160,7 +183,7 @@ class BusApiTest extends TestCase
 
         $this->postJson('/api/operador/buses', $this->busPayload([
             'ruta_id' => $unassignedRuta->id,
-            'placa' => 'EF-789',
+            'placa' => 'AB-789',
             'tipo_bus_id' => $tipoBus->id,
         ]))
             ->assertForbidden()
@@ -214,6 +237,46 @@ class BusApiTest extends TestCase
             'placa' => 'AB-123',
             'tipo_bus_id' => $tipoBus->id,
         ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['placa']);
+    }
+
+    public function test_bus_validates_salvadoran_public_transport_plate_by_bus_type(): void
+    {
+        $empresario = $this->createUser('empresario', 'empresario@example.test');
+        $operador = $this->createOperador($empresario);
+        $busType = $this->createTipoBus('bus');
+        $microbusType = $this->createTipoBus('microbus');
+        $ruta = $this->createRuta('302', 'Usulutan - San Salvador');
+        $this->createOperadorRuta($operador, $ruta);
+        $bus = $this->createBus($operador, $ruta, $busType, placa: 'AB-123');
+
+        Sanctum::actingAs($empresario);
+
+        $this->postJson('/api/operador/buses', $this->busPayload([
+            'ruta_id' => $ruta->id,
+            'placa' => 'MB-456',
+            'tipo_bus_id' => $busType->id,
+        ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['placa']);
+
+        $this->postJson('/api/operador/buses', $this->busPayload([
+            'ruta_id' => $ruta->id,
+            'placa' => 'mb-a12',
+            'tipo_bus_id' => $microbusType->id,
+        ]))
+            ->assertCreated()
+            ->assertJsonPath('bus.placa', 'MB-A12');
+
+        $this->putJson("/api/operador/buses/{$bus->id}", [
+            'ruta_id' => $ruta->id,
+            'placa' => 'AB-1',
+            'marca' => 'Volvo',
+            'nombre_unidad' => 'Unidad Centro',
+            'capacidad' => 50,
+            'tipo_bus_id' => $busType->id,
+        ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['placa']);
     }
