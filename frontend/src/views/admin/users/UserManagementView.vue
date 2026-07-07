@@ -7,14 +7,14 @@ import StatusChip from "@/components/common/StatusChip.vue";
 import { notify } from "@/services/notifyService";
 import {
   createUser,
+  getRoles,
   getUsers,
   resetUserPassword,
   toggleUserStatus,
   updateUser,
 } from "@/services/userService";
-import UserCreateModal from "@/views/admin/users/components/UserCreateModal.vue";
 import UserDeleteModal from "@/views/admin/users/components/UserDeleteModal.vue";
-import UserEditModal from "@/views/admin/users/components/UserEditModal.vue";
+import UserFormModal from "@/views/admin/users/components/UserFormModal.vue";
 import UserResetPasswordModal from "@/views/admin/users/components/UserResetPasswordModal.vue";
 import UserStatusModal from "@/views/admin/users/components/UserStatusModal.vue";
 
@@ -29,19 +29,18 @@ const lastPage = ref(1);
 const selectedUser = ref(null);
 const actionLoading = ref(false);
 
-const showCreateModal = ref(false);
-const showEditModal = ref(false);
+const showFormModal = ref(false);
 const showResetPasswordModal = ref(false);
 const showDeleteModal = ref(false);
 const showStatusModal = ref(false);
+const formMode = ref("create");
 
-const roles = ref([
-  { id: 1, nombre: "Supervisor" },
-  { id: 2, nombre: "Administrador" },
-  { id: 3, nombre: "Operador" },
-  { id: 4, nombre: "Pasajero" },
-  { id: 5, nombre: "Conductor" },
-]);
+const roles = ref([]);
+const rolesLoading = ref(false);
+const rolesError = ref("");
+const assignableRoles = computed(() =>
+  roles.value.filter((role) => role.nombre?.toLowerCase() !== "validador"),
+);
 
 const usersTableHeaders = [
   { title: "Nombre", key: "name", sortable: false },
@@ -64,6 +63,8 @@ const getRow = (item) => item?.raw ?? item;
 const getEstado = (item) => getRow(item)?.estado ?? "";
 
 const isActiveStatus = (status) => status === "Activo";
+
+const isValidatorRole = (item) => getRow(item)?.roleName?.toLowerCase() === "validador";
 
 const selectedUserIsActive = computed(() => isActiveStatus(selectedUser.value?.estado));
 
@@ -93,6 +94,28 @@ const fetchUsers = async () => {
   }
 };
 
+const fetchRoles = async () => {
+  rolesLoading.value = true;
+  rolesError.value = "";
+
+  try {
+    const { data } = await getRoles();
+
+    roles.value = data.roles ?? [];
+  } catch {
+    roles.value = [];
+    rolesError.value = "No se pudieron cargar los roles. Intente nuevamente.";
+  } finally {
+    rolesLoading.value = false;
+  }
+};
+
+const ensureRolesLoaded = () => {
+  if (!rolesLoading.value && roles.value.length === 0) {
+    fetchRoles();
+  }
+};
+
 const handleSearch = () => {
   page.value = 1;
   fetchUsers();
@@ -116,8 +139,7 @@ const handlePerPageChange = (value) => {
 };
 
 const closeModals = () => {
-  showCreateModal.value = false;
-  showEditModal.value = false;
+  showFormModal.value = false;
   showResetPasswordModal.value = false;
   showDeleteModal.value = false;
   showStatusModal.value = false;
@@ -126,12 +148,16 @@ const closeModals = () => {
 
 const openCreateModal = () => {
   selectedUser.value = null;
-  showCreateModal.value = true;
+  formMode.value = "create";
+  ensureRolesLoaded();
+  showFormModal.value = true;
 };
 
 const openEditModal = (user) => {
   selectedUser.value = getRow(user);
-  showEditModal.value = true;
+  formMode.value = "edit";
+  ensureRolesLoaded();
+  showFormModal.value = true;
 };
 
 const openResetPasswordModal = (user) => {
@@ -139,14 +165,14 @@ const openResetPasswordModal = (user) => {
   showResetPasswordModal.value = true;
 };
 
-const openToggleStatusModal = (user) => {
-  selectedUser.value = getRow(user);
-  showStatusModal.value = true;
-};
-
 const openDeleteModal = (user) => {
   selectedUser.value = getRow(user);
   showDeleteModal.value = true;
+};
+
+const openToggleStatusModal = (user) => {
+  selectedUser.value = getRow(user);
+  showStatusModal.value = true;
 };
 
 const handleCreateUser = async (payload) => {
@@ -169,7 +195,6 @@ const handleEditUser = async (payload) => {
     const { data } = await updateUser(payload.id, {
       name: payload.name,
       email: payload.email,
-      role_id: payload.role_id,
     });
     notify.success(data.message || "Usuario actualizado correctamente.");
     closeModals();
@@ -177,6 +202,15 @@ const handleEditUser = async (payload) => {
   } finally {
     actionLoading.value = false;
   }
+};
+
+const handleFormSubmit = (payload) => {
+  if (formMode.value === "edit") {
+    handleEditUser(payload);
+    return;
+  }
+
+  handleCreateUser(payload);
 };
 
 const handleResetPassword = async () => {
@@ -219,7 +253,10 @@ const handleDeleteUser = () => {
   closeModals();
 };
 
-onMounted(fetchUsers);
+onMounted(() => {
+  fetchUsers();
+  fetchRoles();
+});
 </script>
 
 <template>
@@ -339,7 +376,8 @@ onMounted(fetchUsers);
           </v-tooltip>
 
           <v-tooltip
-            :text="isActiveStatus(getEstado(item)) ? 'Desactivado' : 'Activar'"
+            v-if="!isValidatorRole(item)"
+            :text="isActiveStatus(getEstado(item)) ? 'Desactivar' : 'Activar'"
           >
             <template #activator="{ props }">
               <v-btn
@@ -362,7 +400,7 @@ onMounted(fetchUsers);
             </template>
           </v-tooltip>
 
-          <v-tooltip text="Eliminar">
+          <!-- <v-tooltip text="Eliminar">
             <template #activator="{ props }">
               <v-btn
                 v-bind="props"
@@ -374,26 +412,21 @@ onMounted(fetchUsers);
                 @click="openDeleteModal(item)"
               />
             </template>
-          </v-tooltip>
+          </v-tooltip> -->
         </div>
       </template>
     </AppDataTable>
 
-    <UserCreateModal
-      v-model="showCreateModal"
+    <UserFormModal
+      v-model="showFormModal"
       :loading="actionLoading"
-      :roles="roles"
-      @cancel="closeModals"
-      @submit="handleCreateUser"
-    />
-
-    <UserEditModal
-      v-model="showEditModal"
-      :loading="actionLoading"
-      :roles="roles"
+      :mode="formMode"
+      :roles="assignableRoles"
+      :roles-error="rolesError"
+      :roles-loading="rolesLoading"
       :user="selectedUser"
       @cancel="closeModals"
-      @submit="handleEditUser"
+      @submit="handleFormSubmit"
     />
 
     <UserResetPasswordModal
@@ -432,7 +465,7 @@ onMounted(fetchUsers);
   align-items: center;
   display: flex;
   gap: 6px;
-  justify-content: center;
+  justify-content: start;
   white-space: nowrap;
 }
 </style>

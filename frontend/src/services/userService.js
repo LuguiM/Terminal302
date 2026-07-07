@@ -4,6 +4,10 @@ export const getUsers = (params = {}) => {
   return api.get('/admin/users', { params })
 }
 
+export const getRoles = () => {
+  return api.get('/admin/roles')
+}
+
 export const createUser = (payload) => {
   return api.post('/admin/users', payload)
 }
