@@ -213,6 +213,15 @@ const routes = [
               permissionPath: '/vendedor/tickets',
             },
           },
+          {
+            path: 'historial',
+            name: 'seller-ticket-history',
+            component: () => import('@/views/seller/tickets/SellerTicketHistoryView.vue'),
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/vendedor/historial',
+            },
+          },
         ],
       },
     ],

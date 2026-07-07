@@ -55,3 +55,7 @@ export const getSellerTicketImageObjectUrl = async (ticketId) => {
 export const getSellerDeliveries = (params = {}) => {
   return api.get('/vendedor/tickets/entregas', { params })
 }
+
+export const getSellerSalesHistory = (params = {}) => {
+  return api.get('/vendedor/tickets', { params })
+}

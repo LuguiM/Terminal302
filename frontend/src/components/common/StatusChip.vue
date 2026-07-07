@@ -38,7 +38,7 @@ const STATUS_STYLES = {
     border: '#19ad27',
     text: '#19ad27',
   },
-  Fallo: {
+  Fallido: {
     background: '#e79a9c',
     border: '#b9292c',
     text: '#b9292c',
