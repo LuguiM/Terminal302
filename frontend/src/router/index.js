@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
+import ValidatorLayout from '@/layouts/ValidatorLayout.vue'
+import { getAuthenticatedHomeRoute, isValidatorUser } from '@/router/authHome'
 import { useAuthStore } from '@/stores/authStore'
 import { useMenuStore } from '@/stores/menuStore'
 
@@ -227,6 +229,31 @@ const routes = [
     ],
   },
   {
+    path: '/validador',
+    component: ValidatorLayout,
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'tickets',
+        name: 'validator-ticket-welcome',
+        component: () => import('@/views/validator/tickets/ValidatorWelcomeView.vue'),
+        meta: {
+          requiresAuth: true,
+          permissionPath: '/validador/tickets',
+        },
+      },
+      {
+        path: 'tickets/escanear',
+        name: 'validator-ticket-scanner',
+        component: () => import('@/views/validator/tickets/ValidatorScannerView.vue'),
+        meta: {
+          requiresAuth: true,
+          permissionPath: '/validador/tickets',
+        },
+      },
+    ],
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/views/auth/LoginView.vue'),
@@ -288,13 +315,7 @@ router.beforeEach(async (to) => {
   }
 
   if (to.name === 'login' && accessToken) {
-    if (authStore.mustChangePassword) {
-      return { name: 'change-password' }
-    }
-
-    return authStore.requiresOperatorRegistration
-      ? { name: 'operator-registration' }
-      : { name: 'inicio' }
+    return getAuthenticatedHomeRoute(authStore)
   }
 
   if (
@@ -321,7 +342,15 @@ router.beforeEach(async (to) => {
     && !authStore.requiresOperatorRegistration
     && to.meta.isOperatorRegistrationRoute
   ) {
-    return { name: 'inicio' }
+    return getAuthenticatedHomeRoute(authStore)
+  }
+
+  if (
+    accessToken
+    && to.name === 'inicio'
+    && isValidatorUser(authStore.user)
+  ) {
+    return { name: 'validator-ticket-welcome' }
   }
 
   if (!to.meta.requiresAuth || to.meta.skipMenuPermission) {

@@ -5,6 +5,7 @@ import { useVuelidate } from '@vuelidate/core'
 import { helpers, minLength, required, sameAs } from '@vuelidate/validators'
 
 import logoImage from '@/assets/logo.png'
+import { getAuthenticatedHomeRoute } from '@/router/authHome'
 import { notify } from '@/services/notifyService'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -60,9 +61,7 @@ const submitChangePassword = async () => {
     })
 
     notify.success('Contraseña actualizada correctamente.')
-    router.push({
-      name: authStore.requiresOperatorRegistration ? 'operator-registration' : 'inicio',
-    })
+    router.push(getAuthenticatedHomeRoute(authStore))
   } catch {
     form.password = ''
     form.password_confirmation = ''

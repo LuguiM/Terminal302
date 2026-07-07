@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 
 import loginImage from '@/assets/login-img.png'
 import logoImage from '@/assets/logo.png'
+import { getAuthenticatedHomeRoute } from '@/router/authHome'
 import { notify } from '@/services/notifyService'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -41,14 +42,7 @@ const submitLogin = async () => {
 
     notify.success('Inicio de sesion correcto.')
 
-    if (authStore.mustChangePassword) {
-      router.push({ name: 'change-password' })
-      return
-    }
-
-    router.push({
-      name: authStore.requiresOperatorRegistration ? 'operator-registration' : 'inicio',
-    })
+    router.push(getAuthenticatedHomeRoute(authStore))
   } catch {
     password.value = ''
   }
