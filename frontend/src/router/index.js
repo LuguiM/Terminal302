@@ -99,6 +99,29 @@ const routes = [
               },
             ],
           },
+          {
+            path: 'configuracion',
+            children: [
+              {
+                path: 'plantilla',
+                name: 'admin-ticket-templates',
+                component: () => import('@/views/admin/ticket-templates/AdminTicketTemplatesView.vue'),
+                meta: {
+                  requiresAuth: true,
+                  permissionPath: '/admin/configuracion/plantilla',
+                },
+              },
+              {
+                path: 'plantilla/:id/editar',
+                name: 'admin-ticket-template-editor',
+                component: () => import('@/views/admin/ticket-templates/AdminTicketTemplateEditorView.vue'),
+                meta: {
+                  requiresAuth: true,
+                  permissionPath: '/admin/configuracion/plantilla',
+                },
+              },
+            ],
+          },
         ],
       },
       {
