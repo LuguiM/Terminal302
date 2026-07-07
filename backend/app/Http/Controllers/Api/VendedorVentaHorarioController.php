@@ -10,6 +10,7 @@ use App\Models\Estado;
 use App\Models\Horario;
 use App\Models\Ruta;
 use App\Models\VentaHorario;
+use App\Services\VentaHorarioLifecycleService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 
@@ -17,7 +18,7 @@ class VendedorVentaHorarioController extends Controller
 {
     private const OPERATION_TIMEZONE = 'America/El_Salvador';
 
-    public function rutasDisponibles(): JsonResponse
+    public function rutasDisponibles(VentaHorarioLifecycleService $ventaHorarioLifecycleService): JsonResponse
     {
         $activeStatus = Estado::activo();
 
@@ -25,10 +26,16 @@ class VendedorVentaHorarioController extends Controller
             return $this->missingStatusResponse('activo');
         }
 
+        $now = CarbonImmutable::now(self::OPERATION_TIMEZONE);
+        $ventaHorarioLifecycleService->closeExpiredForToday($activeStatus, $now);
+
         $rutas = Ruta::query()
             ->with('estado')
             ->where('estado_id', $activeStatus->id)
-            ->whereHas('horarios', fn ($query) => $query->where('estado_id', $activeStatus->id))
+            ->whereHas('horarios', fn ($query) => $query
+                ->where('estado_id', $activeStatus->id)
+                ->where('hora_salida', '>=', $now->format('H:i'))
+                ->whereHas('dia', fn ($dayQuery) => $dayQuery->where('orden', $now->dayOfWeekIso)))
             ->orderBy('ruta')
             ->get();
 
@@ -37,13 +44,18 @@ class VendedorVentaHorarioController extends Controller
         ]);
     }
 
-    public function horariosDisponiblesPorRuta(int|string $ruta): JsonResponse
-    {
+    public function horariosDisponiblesPorRuta(
+        int|string $ruta,
+        VentaHorarioLifecycleService $ventaHorarioLifecycleService,
+    ): JsonResponse {
         $activeStatus = Estado::activo();
 
         if (! $activeStatus) {
             return $this->missingStatusResponse('activo');
         }
+
+        $now = CarbonImmutable::now(self::OPERATION_TIMEZONE);
+        $ventaHorarioLifecycleService->closeExpiredForToday($activeStatus, $now);
 
         $ruta = Ruta::query()->with('estado')->find($ruta);
 
@@ -59,28 +71,24 @@ class VendedorVentaHorarioController extends Controller
             ], 422);
         }
 
-        $now = CarbonImmutable::now(self::OPERATION_TIMEZONE);
         $fechaOperacion = $now->toDateString();
-        $diaOrden = $now->dayOfWeekIso;
-        $currentMinute = ($now->hour * 60) + $now->minute;
 
         $horarios = Horario::query()
             ->with(['ruta', 'operador', 'bus', 'estado'])
             ->where('ruta_id', $ruta->id)
             ->where('estado_id', $activeStatus->id)
-            ->whereHas('dia', fn ($query) => $query->where('orden', $diaOrden))
+            ->where('hora_salida', '>=', $now->format('H:i'))
+            ->whereHas('dia', fn ($query) => $query->where('orden', $now->dayOfWeekIso))
             ->orderBy('hora_salida')
             ->get();
 
         if ($horarios->isEmpty()) {
             return response()->json([
-                'message' => 'No existen horarios activos para esta ruta.',
+                'message' => 'No existen horarios activos vigentes para esta ruta.',
             ], 404);
         }
 
-        $horarioEnMeta = $horarios
-            ->sortBy(fn (Horario $horario): int => abs($this->minutesFromTime($horario->hora_salida) - $currentMinute))
-            ->first();
+        $horarioEnMeta = $horarios->first();
 
         if (! $horarioEnMeta) {
             return response()->json([
@@ -163,6 +171,7 @@ class VendedorVentaHorarioController extends Controller
                 'id' => $horario->ruta?->id,
                 'ruta' => $horario->ruta?->ruta,
                 'denominacion' => $horario->ruta?->denominacion,
+                'tarifa' => $horario->ruta?->tarifa,
             ],
             'operador' => [
                 'id' => $horario->operador?->id,

@@ -74,10 +74,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/rutas-disponibles', [VendedorVentaHorarioController::class, 'rutasDisponibles']);
             Route::get('/rutas/{ruta}/horarios-disponibles', [VendedorVentaHorarioController::class, 'horariosDisponiblesPorRuta']);
             Route::patch('/ventas-horarios/{ventaHorario}/cerrar', [VendedorVentaHorarioController::class, 'cerrar']);
+            Route::get('/tipo-envios', [VendedorTicketController::class, 'tipoEnvios']);
             Route::get('/tickets', [VendedorTicketController::class, 'index']);
             Route::get('/tickets/entregas', [VendedorTicketController::class, 'entregas']);
             Route::post('/tickets', [VendedorTicketController::class, 'store']);
             Route::post('/tickets/{id}/retry-processing', [VendedorTicketController::class, 'retryProcessing']);
+            Route::get('/tickets/{id}/template-image', [VendedorTicketController::class, 'templateImage']);
+            Route::get('/tickets/{id}/image', [VendedorTicketController::class, 'image']);
             Route::get('/tickets/{id}/print', [VendedorTicketController::class, 'print']);
         });
 

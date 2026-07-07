@@ -18,6 +18,8 @@ use App\Models\TipoBus;
 use App\Models\TipoOperador;
 use App\Models\User;
 use App\Models\VentaHorario;
+use App\Mail\DigitalTicketMail;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -35,6 +37,13 @@ class TicketApiTest extends TestCase
 
         Mail::fake();
         Storage::fake(config('filesystems.default'));
+    }
+
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_vendedor_can_list_only_own_tickets_paginated_with_filters(): void
@@ -93,6 +102,24 @@ class TicketApiTest extends TestCase
             ->assertJsonPath('tickets.0.codigo_ticket', 'TKT-OWN-001');
     }
 
+    public function test_vendedor_can_list_active_tipo_envios(): void
+    {
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $impreso = $this->createTipoEnvio(TipoEnvio::IMPRESO);
+        $digital = $this->createTipoEnvio(TipoEnvio::DIGITAL);
+        $this->createTipoEnvio('inactivo', Estado::DESACTIVADO_ID, 'Desactivado');
+
+        Sanctum::actingAs($vendedor);
+
+        $this->getJson('/api/vendedor/tipo-envios')
+            ->assertOk()
+            ->assertJsonPath('tipo_envios.0.id', $impreso->id)
+            ->assertJsonPath('tipo_envios.0.nombre', TipoEnvio::IMPRESO)
+            ->assertJsonPath('tipo_envios.1.id', $digital->id)
+            ->assertJsonPath('tipo_envios.1.nombre', TipoEnvio::DIGITAL)
+            ->assertJsonCount(2, 'tipo_envios');
+    }
+
     public function test_vendedor_can_sell_printed_tickets_with_default_template_and_issued_status(): void
     {
         $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
@@ -102,12 +129,13 @@ class TicketApiTest extends TestCase
 
         Sanctum::actingAs($vendedor);
 
-        $this->postJson('/api/vendedor/tickets', [
+        $response = $this->postJson('/api/vendedor/tickets', [
             'venta_horario_id' => $ventaHorario->id,
             'cantidad' => 2,
             'tipo_envio_id' => $tipoEnvio->id,
-        ])
-            ->assertCreated()
+        ]);
+
+        $response->assertCreated()
             ->assertJsonPath('message', 'Tickets generados correctamente.')
             ->assertJsonPath('tipo_envio.nombre', 'impreso')
             ->assertJsonPath('resumen.cantidad_solicitada', 2)
@@ -118,13 +146,40 @@ class TicketApiTest extends TestCase
             ->assertJsonPath('resumen.total_tickets_sobreventa', 0)
             ->assertJsonPath('resumen.venta_cerrada', false)
             ->assertJsonPath('tickets.0.estado.nombre', 'Emitido')
+            ->assertJsonPath('tickets.0.numero_asiento', 1)
+            ->assertJsonPath('tickets.1.numero_asiento', 2)
             ->assertJsonPath('tickets.0.ticket_plantilla_id', $plantilla->id)
-            ->assertJsonPath('tickets.0.ticket_image_path', null)
-            ->assertJsonPath('tickets.0.image_url', null)
-            ->assertJsonPath('tickets.0.print_url', null)
             ->assertJsonPath('tickets.0.procesamiento_estado_id', null)
             ->assertJsonPath('tickets.0.procesamiento_estado', null)
-            ->assertJsonStructure(['impresion' => ['tickets']]);
+            ->assertJsonPath('impresion.tickets.0.ticket_plantilla.id', $plantilla->id)
+            ->assertJsonPath('impresion.tickets.0.asiento', 1)
+            ->assertJsonStructure([
+                'impresion' => [
+                    'tickets' => [
+                        [
+                            'qr_path',
+                            'ticket_image_path',
+                            'image_url',
+                            'print_url',
+                            'ticket_plantilla' => [
+                                'id',
+                                'image_url',
+                                'codigo_ticket_location',
+                                'ruta_location',
+                                'salida_location',
+                                'operador_location',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertNotNull($response->json('tickets.0.qr_path'));
+        $this->assertNotNull($response->json('tickets.0.ticket_image_path'));
+        $this->assertNotNull($response->json('tickets.0.image_url'));
+        $this->assertNotNull($response->json('tickets.0.print_url'));
+        Storage::disk(config('filesystems.default'))->assertExists($response->json('tickets.0.qr_path'));
+        Storage::disk(config('filesystems.default'))->assertExists($response->json('tickets.0.ticket_image_path'));
 
         $this->assertDatabaseCount('tickets', 2);
         $this->assertDatabaseHas('ventas_horarios', [
@@ -171,6 +226,90 @@ class TicketApiTest extends TestCase
         $this->assertSame($expectedPath, $response->json("event_paths.{$ticket->codigo_ticket}"));
         $this->assertStringContainsString('cliente@example.test', Storage::disk(config('filesystems.default'))->get($expectedPath));
         $this->assertStringContainsString('77777777', Storage::disk(config('filesystems.default'))->get($expectedPath));
+        Mail::assertNothingSent();
+    }
+
+    public function test_digital_delivery_command_processes_pending_ticket_and_sends_email(): void
+    {
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $this->createTicketPlantilla();
+        $this->createProcesamientoEstado(ProcesamientoEstado::PENDING);
+        $this->createProcesamientoEstado(ProcesamientoEstado::PROCESSING);
+        $completed = $this->createProcesamientoEstado(ProcesamientoEstado::COMPLETED);
+        $this->createProcesamientoEstado(ProcesamientoEstado::FAILED);
+        $tipoEnvio = $this->createTipoEnvio(TipoEnvio::DIGITAL);
+        $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
+
+        Sanctum::actingAs($vendedor);
+
+        $this->postJson('/api/vendedor/tickets', [
+            'venta_horario_id' => $ventaHorario->id,
+            'cantidad' => 1,
+            'tipo_envio_id' => $tipoEnvio->id,
+            'correo_destino' => 'cliente@example.test',
+        ])->assertCreated();
+
+        $ticket = Ticket::query()->firstOrFail();
+        $pendingPath = "ticket-events/pending/{$ticket->codigo_ticket}.json";
+        $completedPath = "ticket-events/completed/{$ticket->codigo_ticket}.json";
+
+        Storage::disk(config('filesystems.default'))->assertExists($pendingPath);
+
+        $this->artisan('tickets:process-digital-deliveries')
+            ->assertExitCode(0);
+
+        $ticket->refresh();
+
+        $this->assertSame($completed->id, $ticket->procesamiento_estado_id);
+        $this->assertNotNull($ticket->processed_at);
+        $this->assertNull($ticket->processing_error);
+        $this->assertSame($completedPath, $ticket->processing_event_path);
+        Storage::disk(config('filesystems.default'))->assertMissing($pendingPath);
+        Storage::disk(config('filesystems.default'))->assertExists($completedPath);
+        Mail::assertSent(DigitalTicketMail::class, function (DigitalTicketMail $mail): bool {
+            $attachment = $mail->attachments()[0] ?? null;
+
+            return $mail->hasTo('cliente@example.test')
+                && $mail->ticket->codigo_ticket !== null
+                && $attachment?->as === $mail->ticket->codigo_ticket.'.png'
+                && $attachment?->mime === 'image/png';
+        });
+    }
+
+    public function test_digital_delivery_command_marks_ticket_as_failed_when_processing_fails(): void
+    {
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $plantilla = $this->createTicketPlantilla();
+        $digital = $this->createTipoEnvio(TipoEnvio::DIGITAL);
+        $pending = $this->createProcesamientoEstado(ProcesamientoEstado::PENDING);
+        $this->createProcesamientoEstado(ProcesamientoEstado::PROCESSING);
+        $failed = $this->createProcesamientoEstado(ProcesamientoEstado::FAILED);
+        $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
+        $ticket = $this->createTicket(
+            $ventaHorario,
+            $vendedor,
+            $plantilla,
+            $digital,
+            'TKT-DIGITAL-FAILED',
+            procesamientoEstado: $pending,
+        );
+        $eventPath = "ticket-events/pending/{$ticket->codigo_ticket}.json";
+        Storage::put($eventPath, json_encode([
+            'ticket_id' => $ticket->id,
+            'codigo_ticket' => $ticket->codigo_ticket,
+        ]));
+
+        $this->artisan('tickets:process-digital-deliveries')
+            ->assertExitCode(1);
+
+        $ticket->refresh();
+
+        $this->assertSame($failed->id, $ticket->procesamiento_estado_id);
+        $this->assertNull($ticket->processed_at);
+        $this->assertNotNull($ticket->processing_error);
+        $this->assertSame("ticket-events/failed/{$ticket->codigo_ticket}.json", $ticket->processing_event_path);
+        Storage::disk(config('filesystems.default'))->assertMissing($eventPath);
+        Storage::disk(config('filesystems.default'))->assertExists("ticket-events/failed/{$ticket->codigo_ticket}.json");
         Mail::assertNothingSent();
     }
 
@@ -319,6 +458,76 @@ class TicketApiTest extends TestCase
         $this->assertSame($failed->id, $ticket->fresh()->procesamiento_estado_id);
     }
 
+    public function test_vendedor_can_download_template_image_for_own_ticket(): void
+    {
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $otherVendedor = $this->createUser('vendedor', 'other-template@example.test');
+        $plantilla = $this->createTicketPlantilla();
+        $tipoEnvio = $this->createTipoEnvio(TipoEnvio::IMPRESO);
+        $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
+        $ticket = $this->createTicket($ventaHorario, $vendedor, $plantilla, $tipoEnvio, 'TKT-TEMPLATE-OWN');
+        $foreignTicket = $this->createTicket($ventaHorario, $otherVendedor, $plantilla, $tipoEnvio, 'TKT-TEMPLATE-FOREIGN');
+
+        Sanctum::actingAs($vendedor);
+
+        $this->getJson("/api/vendedor/tickets/{$ticket->id}/template-image")
+            ->assertOk();
+
+        $this->getJson("/api/vendedor/tickets/{$foreignTicket->id}/template-image")
+            ->assertForbidden()
+            ->assertJsonPath('message', 'El ticket no pertenece al vendedor autenticado.');
+    }
+
+    public function test_vendedor_can_download_generated_ticket_image_for_own_ticket(): void
+    {
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $otherVendedor = $this->createUser('vendedor', 'other-image@example.test');
+        $plantilla = $this->createTicketPlantilla();
+        $tipoEnvio = $this->createTipoEnvio(TipoEnvio::IMPRESO);
+        $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
+        Storage::put('tickets/final/TKT-IMAGE-OWN.png', 'fake png');
+        $ticket = $this->createTicket(
+            $ventaHorario,
+            $vendedor,
+            $plantilla,
+            $tipoEnvio,
+            'TKT-IMAGE-OWN',
+            ticketImagePath: 'tickets/final/TKT-IMAGE-OWN.png',
+        );
+        $foreignTicket = $this->createTicket(
+            $ventaHorario,
+            $otherVendedor,
+            $plantilla,
+            $tipoEnvio,
+            'TKT-IMAGE-FOREIGN',
+            ticketImagePath: 'tickets/final/TKT-IMAGE-FOREIGN.png',
+        );
+
+        Sanctum::actingAs($vendedor);
+
+        $this->getJson("/api/vendedor/tickets/{$ticket->id}/image")
+            ->assertOk();
+
+        $this->getJson("/api/vendedor/tickets/{$foreignTicket->id}/image")
+            ->assertForbidden()
+            ->assertJsonPath('message', 'El ticket no pertenece al vendedor autenticado.');
+    }
+
+    public function test_vendedor_ticket_image_endpoint_requires_generated_image(): void
+    {
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $plantilla = $this->createTicketPlantilla();
+        $tipoEnvio = $this->createTipoEnvio(TipoEnvio::IMPRESO);
+        $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
+        $ticket = $this->createTicket($ventaHorario, $vendedor, $plantilla, $tipoEnvio, 'TKT-NO-IMAGE');
+
+        Sanctum::actingAs($vendedor);
+
+        $this->getJson("/api/vendedor/tickets/{$ticket->id}/image")
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'El ticket no tiene imagen generada.');
+    }
+
     public function test_sale_is_rejected_without_partial_tickets_when_quantity_exceeds_capacity_and_overbooking_is_disabled(): void
     {
         $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
@@ -402,6 +611,38 @@ class TicketApiTest extends TestCase
             'total_tickets_vendidos' => 2,
             'venta_cerrada' => true,
             'motivo_cierre' => 'Capacidad alcanzada.',
+        ]);
+    }
+
+    public function test_sale_is_rejected_and_closed_when_departure_time_has_passed(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-06-30 09:00:00', 'America/El_Salvador'));
+
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $this->createTicketPlantilla();
+        $tipoEnvio = $this->createTipoEnvio(TipoEnvio::IMPRESO);
+        $horario = $this->createHorarioContext();
+        $horario->forceFill([
+            'dia_id' => $this->createDia(2, 'Martes')->id,
+        ])->save();
+        $ventaHorario = $this->createVentaHorario($horario);
+
+        Sanctum::actingAs($vendedor);
+
+        $this->postJson('/api/vendedor/tickets', [
+            'venta_horario_id' => $ventaHorario->id,
+            'cantidad' => 1,
+            'tipo_envio_id' => $tipoEnvio->id,
+        ])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'La hora de salida de este horario ya paso y la venta fue cerrada.');
+
+        $this->assertDatabaseCount('tickets', 0);
+        $this->assertDatabaseHas('ventas_horarios', [
+            'id' => $ventaHorario->id,
+            'venta_cerrada' => true,
+            'cerrada_por' => $vendedor->id,
+            'motivo_cierre' => 'Hora de salida alcanzada.',
         ]);
     }
 
@@ -522,10 +763,15 @@ class TicketApiTest extends TestCase
 
         $this->getJson('/api/vendedor/tickets')
             ->assertUnauthorized();
+        $this->getJson('/api/vendedor/tipo-envios')
+            ->assertUnauthorized();
 
         Sanctum::actingAs($admin);
 
         $this->getJson('/api/vendedor/tickets')
+            ->assertForbidden()
+            ->assertJsonPath('message', 'No tiene permisos para acceder a este recurso.');
+        $this->getJson('/api/vendedor/tipo-envios')
             ->assertForbidden()
             ->assertJsonPath('message', 'No tiene permisos para acceder a este recurso.');
 
@@ -567,9 +813,29 @@ class TicketApiTest extends TestCase
 
     private function createTicketPlantilla(): TicketPlantilla
     {
+        $image = imagecreatetruecolor(1000, 500);
+        imagefill($image, 0, 0, imagecolorallocate($image, 255, 255, 255));
+        ob_start();
+        imagepng($image);
+        $png = (string) ob_get_clean();
+        imagedestroy($image);
+
+        Storage::put(
+            'ticket-plantillas/default.png',
+            $png,
+        );
+
         return TicketPlantilla::query()->create([
             'nombre' => 'Plantilla Predeterminada',
             'image_path' => 'ticket-plantillas/default.png',
+            'qr_location' => ['x' => 700, 'y' => 160, 'width' => 120, 'height' => 120],
+            'precio_location' => ['x' => 100, 'y' => 340, 'width' => 160, 'height' => 40],
+            'fecha_hora_location' => ['x' => 380, 'y' => 380, 'width' => 220, 'height' => 40],
+            'asiento_location' => ['x' => 390, 'y' => 270, 'width' => 160, 'height' => 40],
+            'codigo_ticket_location' => ['x' => 720, 'y' => 60, 'width' => 220, 'height' => 60],
+            'ruta_location' => ['x' => 320, 'y' => 150, 'width' => 340, 'height' => 70],
+            'salida_location' => ['x' => 400, 'y' => 330, 'width' => 160, 'height' => 40],
+            'operador_location' => ['x' => 420, 'y' => 70, 'width' => 220, 'height' => 40],
             'estado_id' => Estado::ACTIVO_ID,
             'es_predeterminada' => true,
         ]);

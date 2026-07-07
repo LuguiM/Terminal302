@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Ticket\StoreTicketRequest;
+use App\Http\Resources\TicketPlantillaResource;
 use App\Http\Resources\TicketResource;
+use App\Http\Resources\TipoEnvioResource;
 use App\Http\Resources\VentaHorarioResource;
 use App\Models\Estado;
 use App\Models\ProcesamientoEstado;
@@ -13,6 +15,8 @@ use App\Models\TicketPlantilla;
 use App\Models\TipoEnvio;
 use App\Models\VentaHorario;
 use App\Services\TicketProcessingEventService;
+use App\Services\TicketRenderService;
+use App\Services\VentaHorarioLifecycleService;
 use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -21,11 +25,30 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 class VendedorTicketController extends Controller
 {
     private const OPERATION_TIMEZONE = 'America/El_Salvador';
+
+    public function tipoEnvios(): JsonResponse
+    {
+        $activeStatus = Estado::activo();
+
+        if (! $activeStatus) {
+            return $this->missingStatusResponse('activo');
+        }
+
+        $tipoEnvios = TipoEnvio::query()
+            ->where('estado_id', $activeStatus->id)
+            ->orderBy('id')
+            ->get();
+
+        return response()->json([
+            'tipo_envios' => TipoEnvioResource::collection($tipoEnvios),
+        ]);
+    }
 
     public function index(Request $request): JsonResponse
     {
@@ -57,12 +80,14 @@ class VendedorTicketController extends Controller
     public function store(
         StoreTicketRequest $request,
         TicketProcessingEventService $ticketProcessingEventService,
+        TicketRenderService $ticketRenderService,
+        VentaHorarioLifecycleService $ventaHorarioLifecycleService,
     ): JsonResponse {
         $validated = $request->validated();
         $vendedor = $request->user();
         $generatedTickets = collect();
 
-        $result = DB::transaction(function () use ($validated, $vendedor, &$generatedTickets): JsonResponse|array {
+        $result = DB::transaction(function () use ($validated, $vendedor, &$generatedTickets, $ventaHorarioLifecycleService): JsonResponse|array {
             $activeStatus = Estado::activo();
 
             if (! $activeStatus) {
@@ -115,7 +140,7 @@ class VendedorTicketController extends Controller
 
             $ventaHorario = VentaHorario::query()
                 ->lockForUpdate()
-                ->with(['horario.ruta', 'horario.operador', 'horario.bus', 'estado', 'cerradaPor'])
+                ->with(['horario.ruta', 'horario.operador', 'horario.bus', 'horario.dia', 'estado', 'cerradaPor'])
                 ->find($validated['venta_horario_id']);
 
             if (! $ventaHorario) {
@@ -124,7 +149,12 @@ class VendedorTicketController extends Controller
                 ], 404);
             }
 
-            $validationResponse = $this->validateVentaHorario($ventaHorario, $activeStatus);
+            $validationResponse = $this->validateVentaHorario(
+                $ventaHorario,
+                $activeStatus,
+                $ventaHorarioLifecycleService,
+                $vendedor?->id,
+            );
 
             if ($validationResponse) {
                 return $validationResponse;
@@ -156,6 +186,7 @@ class VendedorTicketController extends Controller
 
             $ticketsNormales = min($cantidad, $cuposDisponibles);
             $ticketsSobreventa = max($cantidad - $ticketsNormales, 0);
+            $firstTicketNumber = (int) $ventaHorario->total_tickets_vendidos + 1;
 
             for ($index = 0; $index < $cantidad; $index++) {
                 $generatedTickets->push(Ticket::query()->create([
@@ -166,7 +197,7 @@ class VendedorTicketController extends Controller
                         ? ($validated['correo_destino'] ?? null)
                         : null,
                     'telefono_destino' => $validated['telefono_destino'] ?? null,
-                    'numero_asiento' => null,
+                    'numero_asiento' => $firstTicketNumber + $index,
                     'es_sobreventa' => $index >= $ticketsNormales,
                     'tipo_envio_id' => $tipoEnvio->id,
                     'estado_id' => $issuedStatus->id,
@@ -212,6 +243,10 @@ class VendedorTicketController extends Controller
         if ($result instanceof JsonResponse) {
             return $result;
         }
+
+        $generatedTickets = $generatedTickets
+            ->map(fn (Ticket $ticket): Ticket => $ticketRenderService->render($ticket))
+            ->values();
 
         $eventPaths = [];
         $isDigital = (bool) $generatedTickets->first()?->tipoEnvio?->isDigital();
@@ -393,6 +428,60 @@ class VendedorTicketController extends Controller
         ]);
     }
 
+    public function templateImage(Request $request, int $id): JsonResponse|StreamedResponse
+    {
+        $ticket = $this->findSellerTicket($id, $request);
+
+        if ($ticket instanceof JsonResponse) {
+            return $ticket;
+        }
+
+        $template = $ticket->ticketPlantilla;
+
+        if (! $template) {
+            return response()->json([
+                'message' => 'El ticket no tiene plantilla asociada.',
+            ], 422);
+        }
+
+        if (! Storage::exists($template->image_path)) {
+            return response()->json([
+                'message' => 'El archivo de la plantilla no existe.',
+            ], 404);
+        }
+
+        return Storage::download(
+            $template->image_path,
+            basename($template->image_path),
+        );
+    }
+
+    public function image(Request $request, int $id): JsonResponse|StreamedResponse
+    {
+        $ticket = $this->findSellerTicket($id, $request);
+
+        if ($ticket instanceof JsonResponse) {
+            return $ticket;
+        }
+
+        if (! $ticket->ticket_image_path) {
+            return response()->json([
+                'message' => 'El ticket no tiene imagen generada.',
+            ], 422);
+        }
+
+        if (! Storage::exists($ticket->ticket_image_path)) {
+            return response()->json([
+                'message' => 'El archivo del ticket no existe.',
+            ], 404);
+        }
+
+        return Storage::download(
+            $ticket->ticket_image_path,
+            basename($ticket->ticket_image_path),
+        );
+    }
+
     private function publishDigitalProcessingEvents(
         Collection $tickets,
         TicketProcessingEventService $ticketProcessingEventService,
@@ -505,6 +594,7 @@ class VendedorTicketController extends Controller
         $operador = $horario?->operador;
 
         return [
+            'id' => $ticket->id,
             'codigo_ticket' => $ticket->codigo_ticket,
             'ruta' => [
                 'id' => $ruta?->id,
@@ -524,15 +614,30 @@ class VendedorTicketController extends Controller
             'ticket_image_path' => $ticket->ticket_image_path,
             'image_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
             'print_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
+            'ticket_plantilla' => $ticket->ticketPlantilla
+                ? (new TicketPlantillaResource($ticket->ticketPlantilla))->resolve(request())
+                : null,
         ];
     }
 
-    private function validateVentaHorario(VentaHorario $ventaHorario, Estado $activeStatus): ?JsonResponse
-    {
+    private function validateVentaHorario(
+        VentaHorario $ventaHorario,
+        Estado $activeStatus,
+        VentaHorarioLifecycleService $ventaHorarioLifecycleService,
+        ?int $vendedorId,
+    ): ?JsonResponse {
         if ((int) $ventaHorario->estado_id !== (int) $activeStatus->id) {
             return response()->json([
                 'message' => 'La venta de horario no esta activa.',
             ], 422);
+        }
+
+        if ($ventaHorarioLifecycleService->isExpiredForToday($ventaHorario)) {
+            $ventaHorarioLifecycleService->closeExpired($ventaHorario, $vendedorId);
+
+            return response()->json([
+                'message' => 'La hora de salida de este horario ya paso y la venta fue cerrada.',
+            ], 409);
         }
 
         if ($ventaHorario->venta_cerrada) {

@@ -33,12 +33,16 @@ class VentaHorarioApiTest extends TestCase
 
     public function test_vendedor_can_list_available_active_routes_with_active_schedules(): void
     {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-06-29 10:00:00', 'America/El_Salvador'));
+
         $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
         [$ruta, $operador, $bus, $dia] = $this->createSchedulableContext();
-        $this->createHorario($ruta, $operador, $bus, $dia, '08:00');
+        $this->createHorario($ruta, $operador, $bus, $dia, '10:30');
         $inactiveRuta = $this->createRuta('312', 'San Miguel - San Salvador', Estado::DESACTIVADO_ID, 'Desactivado');
         $withoutSchedules = $this->createRuta('301', 'Jiquilisco - Usulutan');
+        $differentDay = $this->createRuta('303', 'Santa Elena - San Salvador');
         $this->createScheduleForRuta($inactiveRuta, '08:00');
+        $this->createScheduleForRuta($differentDay, '09:00', $this->createDia(2, 'Martes'));
 
         Sanctum::actingAs($vendedor);
 
@@ -49,6 +53,9 @@ class VentaHorarioApiTest extends TestCase
 
         $this->assertDatabaseHas('rutas', [
             'id' => $withoutSchedules->id,
+        ]);
+        $this->assertDatabaseHas('rutas', [
+            'id' => $differentDay->id,
         ]);
     }
 
@@ -88,7 +95,7 @@ class VentaHorarioApiTest extends TestCase
 
     public function test_available_schedules_returns_null_next_when_there_is_no_later_schedule_today(): void
     {
-        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-06-29 20:00:00', 'America/El_Salvador'));
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-06-29 17:00:00', 'America/El_Salvador'));
 
         $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
         [$ruta, $operador, $bus, $dia] = $this->createSchedulableContext();
@@ -100,6 +107,32 @@ class VentaHorarioApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('en_meta.horario_id', $horario->id)
             ->assertJsonPath('proximo_a_salir', null);
+    }
+
+    public function test_expired_sale_schedule_is_closed_and_hidden_from_available_schedules(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-06-29 10:00:00', 'America/El_Salvador'));
+
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        [$ruta, $operador, $bus, $dia] = $this->createSchedulableContext();
+        $horario = $this->createHorario($ruta, $operador, $bus, $dia, '09:00');
+        $ventaHorario = $this->createVentaHorario($horario, '2026-06-29');
+
+        Sanctum::actingAs($vendedor);
+
+        $this->getJson('/api/vendedor/rutas-disponibles')
+            ->assertOk()
+            ->assertJsonCount(0, 'rutas');
+
+        $this->getJson("/api/vendedor/rutas/{$ruta->id}/horarios-disponibles")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'No existen horarios activos vigentes para esta ruta.');
+
+        $this->assertDatabaseHas('ventas_horarios', [
+            'id' => $ventaHorario->id,
+            'venta_cerrada' => true,
+            'motivo_cierre' => 'Hora de salida alcanzada.',
+        ]);
     }
 
     public function test_vendedor_can_close_sale_schedule_cycle(): void
@@ -169,7 +202,7 @@ class VentaHorarioApiTest extends TestCase
 
         $this->getJson("/api/vendedor/rutas/{$ruta->id}/horarios-disponibles")
             ->assertNotFound()
-            ->assertJsonPath('message', 'No existen horarios activos para esta ruta.');
+            ->assertJsonPath('message', 'No existen horarios activos vigentes para esta ruta.');
     }
 
     public function test_security_and_unregistered_vendor_sale_schedule_endpoints(): void

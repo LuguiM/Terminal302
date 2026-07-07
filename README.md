@@ -430,6 +430,38 @@ Para cerrar una venta operativa:
 
 El sistema asigna automaticamente el vendedor autenticado en `cerrada_por` y la fecha/hora de cierre. No existen endpoints manuales para crear, editar, eliminar o ver una `venta_horario` individual.
 
+## Tickets digitales en local
+
+Cuando el vendedor genera una venta con tipo de envio `digital`, el backend crea los tickets, genera su QR, genera la imagen final del ticket y deja un evento pendiente en storage:
+
+```text
+ticket-events/pending/{codigo_ticket}.json
+```
+
+Mientras ese evento no sea procesado, el historial de entregas digitales mostrara el estado `pending`.
+
+Para simular el procesamiento local de entregas digitales, ejecuta:
+
+```bash
+docker compose exec backend php artisan tickets:process-digital-deliveries
+```
+
+El comando procesa los eventos pendientes y:
+
+- envia el correo al `correo_destino` con el ticket PNG adjunto;
+- mueve el evento a `ticket-events/completed` si el envio fue correcto;
+- marca el ticket como `completed` y guarda `processed_at`;
+- mueve el evento a `ticket-events/failed` si ocurre un error;
+- marca el ticket como `failed` y guarda `processing_error`.
+
+Para limitar la cantidad de eventos procesados en una corrida:
+
+```bash
+docker compose exec backend php artisan tickets:process-digital-deliveries --limit=10
+```
+
+Si usas la configuracion local por defecto con `MAIL_MAILER=log`, el correo no saldra por SMTP real, pero el flujo de procesamiento se puede validar. Para ver correos en una bandeja local, configura Mailpit o Mailtrap como se indica en la seccion de correos.
+
 Ejemplo de login:
 
 ```bash
