@@ -13,12 +13,22 @@ const menuStore = useMenuStore()
 
 const userName = computed(() => authStore.user?.name ?? 'Usuario')
 const userEmail = computed(() => authStore.user?.email ?? '')
+const roleName = computed(() => authStore.user?.role?.nombre ?? '')
+const normalizedRoleName = computed(() => roleName.value.toString().toLowerCase())
 const operator = computed(() => (
   authStore.user?.operador
   ?? authStore.user?.operador_empleado?.operador
   ?? null
 ))
 const operatorName = computed(() => operator.value?.nombre_comercial ?? operator.value?.razon_social ?? '')
+const roleLabel = computed(() => {
+  if (!['administrador', 'vendedor'].includes(normalizedRoleName.value)) {
+    return ''
+  }
+
+  return roleName.value.charAt(0).toUpperCase() + roleName.value.slice(1)
+})
+const userSubtitle = computed(() => operatorName.value || roleLabel.value)
 
 const handleLogout = async () => {
   await authStore.logout()
@@ -66,10 +76,10 @@ const handleLogout = async () => {
             </span>
 
             <span
-              v-if="operatorName"
+              v-if="userSubtitle"
               class="text-caption text-secondary font-weight-bold text-truncate"
             >
-              {{ operatorName }}
+              {{ userSubtitle }}
             </span>
           </div>
         </div>
@@ -90,6 +100,12 @@ const handleLogout = async () => {
             v-if="operatorName"
             prepend-icon="mdi-domain"
             :title="operatorName"
+          />
+
+          <v-list-item
+            v-else-if="roleLabel"
+            prepend-icon="mdi-shield-account-outline"
+            :title="roleLabel"
           />
         </v-list>
       </v-card>
