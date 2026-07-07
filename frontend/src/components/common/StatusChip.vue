@@ -28,6 +28,21 @@ const STATUS_STYLES = {
     border: '#b9292c',
     text: '#b9292c',
   },
+  Pendiente: {
+    background: '#eef5f9',
+    border: '#667085',
+    text: '#667085'
+  },
+  Completado: {
+    background: '#a8e6b7',
+    border: '#19ad27',
+    text: '#19ad27',
+  },
+  Fallo: {
+    background: '#e79a9c',
+    border: '#b9292c',
+    text: '#b9292c',
+  },
 }
 
 const DEFAULT_STATUS_STYLE = {

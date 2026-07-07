@@ -174,6 +174,47 @@ const routes = [
           },
         ],
       },
+      {
+        path: 'vendedor',
+        children: [
+          {
+            path: 'tickets',
+            name: 'seller-ticket-routes',
+            component: () => import('@/views/seller/tickets/SellerTicketRoutesView.vue'),
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/vendedor/tickets',
+            },
+          },
+          {
+            path: 'tickets/rutas/:rutaId/horarios',
+            name: 'seller-ticket-schedules',
+            component: () => import('@/views/seller/tickets/SellerTicketSchedulesView.vue'),
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/vendedor/tickets',
+            },
+          },
+          {
+            path: 'tickets/ventas/:ventaHorarioId/resumen',
+            name: 'seller-ticket-summary',
+            component: () => import('@/views/seller/tickets/SellerTicketSummaryView.vue'),
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/vendedor/tickets',
+            },
+          },
+          {
+            path: 'tickets/entregas',
+            name: 'seller-ticket-deliveries',
+            component: () => import('@/views/seller/tickets/SellerTicketDeliveriesView.vue'),
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/vendedor/tickets',
+            },
+          },
+        ],
+      },
     ],
   },
   {
