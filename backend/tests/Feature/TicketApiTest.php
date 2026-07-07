@@ -54,11 +54,20 @@ class TicketApiTest extends TestCase
         $tipoEnvio = $this->createTipoEnvio(TipoEnvio::IMPRESO);
         $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
         $ownTicket = $this->createTicket($ventaHorario, $vendedor, $plantilla, $tipoEnvio, 'TKT-OWN-001');
+        $ownTicket->forceFill([
+            'created_at' => CarbonImmutable::parse('2026-07-02 10:00:00', 'America/El_Salvador'),
+            'updated_at' => CarbonImmutable::parse('2026-07-02 10:00:00', 'America/El_Salvador'),
+        ])->save();
+        $otherOwnTicket = $this->createTicket($ventaHorario, $vendedor, $plantilla, $tipoEnvio, 'TKT-OWN-002');
+        $otherOwnTicket->forceFill([
+            'created_at' => CarbonImmutable::parse('2026-07-03 10:00:00', 'America/El_Salvador'),
+            'updated_at' => CarbonImmutable::parse('2026-07-03 10:00:00', 'America/El_Salvador'),
+        ])->save();
         $this->createTicket($ventaHorario, $otherVendedor, $plantilla, $tipoEnvio, 'TKT-OTHER-001');
 
         Sanctum::actingAs($vendedor);
 
-        $this->getJson("/api/vendedor/tickets?venta_horario_id={$ventaHorario->id}&estado_id=".Estado::EMITIDO_ID.'&codigo_ticket=TKT-OWN-001&tipo_envio_id='.$tipoEnvio->id)
+        $this->getJson("/api/vendedor/tickets?venta_horario_id={$ventaHorario->id}&estado_id=".Estado::EMITIDO_ID.'&codigo_ticket=own&tipo_envio_id='.$tipoEnvio->id.'&fecha=2026-07-02')
             ->assertOk()
             ->assertJsonStructure([
                 'tickets' => [
@@ -99,7 +108,9 @@ class TicketApiTest extends TestCase
             ])
             ->assertJsonPath('pagination.total', 1)
             ->assertJsonPath('tickets.0.id', $ownTicket->id)
-            ->assertJsonPath('tickets.0.codigo_ticket', 'TKT-OWN-001');
+            ->assertJsonPath('tickets.0.codigo_ticket', 'TKT-OWN-001')
+            ->assertJsonPath('tickets.0.venta_horario.horario.ruta.ruta', $ventaHorario->horario->ruta->ruta)
+            ->assertJsonPath('tickets.0.venta_horario.horario.hora_salida', '08:00');
     }
 
     public function test_vendedor_can_list_active_tipo_envios(): void

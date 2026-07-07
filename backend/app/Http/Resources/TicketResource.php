@@ -61,6 +61,25 @@ class TicketResource extends JsonResource
                 'venta_cerrada' => (bool) $this->ventaHorario->venta_cerrada,
                 'total_tickets_vendidos' => $this->ventaHorario->total_tickets_vendidos,
                 'total_tickets_sobreventa' => $this->ventaHorario->total_tickets_sobreventa,
+                'horario' => $this->ventaHorario->relationLoaded('horario') && $this->ventaHorario->horario ? [
+                    'id' => $this->ventaHorario->horario->id,
+                    'hora_salida' => substr((string) $this->ventaHorario->horario->hora_salida, 0, 5),
+                    'ruta' => $this->ventaHorario->horario->ruta ? [
+                        'id' => $this->ventaHorario->horario->ruta->id,
+                        'ruta' => $this->ventaHorario->horario->ruta->ruta,
+                        'denominacion' => $this->ventaHorario->horario->ruta->denominacion,
+                        'tarifa' => $this->ventaHorario->horario->ruta->tarifa,
+                    ] : null,
+                    'operador' => $this->ventaHorario->horario->operador ? [
+                        'id' => $this->ventaHorario->horario->operador->id,
+                        'nombre_comercial' => $this->ventaHorario->horario->operador->nombre_comercial,
+                    ] : null,
+                    'bus' => $this->ventaHorario->horario->bus ? [
+                        'id' => $this->ventaHorario->horario->bus->id,
+                        'placa' => $this->ventaHorario->horario->bus->placa,
+                        'marca' => $this->ventaHorario->horario->bus->marca,
+                    ] : null,
+                ] : null,
             ] : null),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

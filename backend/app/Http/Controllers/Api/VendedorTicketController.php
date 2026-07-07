@@ -60,12 +60,25 @@ class VendedorTicketController extends Controller
         }
 
         $tickets = Ticket::query()
-            ->with(['estado', 'tipoEnvio', 'procesamientoEstado', 'ticketPlantilla', 'ventaHorario', 'vendedor'])
+            ->with([
+                'estado',
+                'tipoEnvio',
+                'procesamientoEstado',
+                'ticketPlantilla',
+                'ventaHorario.horario.ruta',
+                'ventaHorario.horario.operador',
+                'ventaHorario.horario.bus',
+                'vendedor',
+            ])
             ->where('vendedor_id', $request->user()?->id)
             ->when($request->filled('venta_horario_id'), fn ($query) => $query->where('venta_horario_id', $request->integer('venta_horario_id')))
             ->when($request->filled('estado_id'), fn ($query) => $query->where('estado_id', $request->integer('estado_id')))
-            ->when($request->filled('codigo_ticket'), fn ($query) => $query->where('codigo_ticket', $request->string('codigo_ticket')->toString()))
+            ->when($request->filled('codigo_ticket'), fn ($query) => $query->whereRaw(
+                'LOWER(codigo_ticket) LIKE ?',
+                ['%'.mb_strtolower($request->string('codigo_ticket')->toString()).'%'],
+            ))
             ->when($request->filled('tipo_envio_id'), fn ($query) => $query->where('tipo_envio_id', $request->integer('tipo_envio_id')))
+            ->when($request->filled('fecha'), fn ($query) => $query->whereDate('created_at', $request->string('fecha')->toString()))
             ->when($request->filled('procesamiento_estado_id'), fn ($query) => $query->where('procesamiento_estado_id', $request->integer('procesamiento_estado_id')))
             ->when($request->filled('processing_status_name'), fn ($query) => $query->whereHas(
                 'procesamientoEstado',
