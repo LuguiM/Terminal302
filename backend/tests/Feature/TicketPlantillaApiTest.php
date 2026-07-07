@@ -24,6 +24,7 @@ class TicketPlantillaApiTest extends TestCase
         config([
             'ticket.ticket_template_width' => 1000,
             'ticket.ticket_template_height' => 500,
+            'ticket.ticket_template_max_size_kb' => 10240,
         ]);
 
         Storage::fake(config('filesystems.default'));
@@ -46,12 +47,16 @@ class TicketPlantillaApiTest extends TestCase
                         'id',
                         'nombre',
                         'image_path',
+                        'image_url',
+                        'download_url',
+                        'image_size_bytes',
                         'qr_location',
                         'precio_location',
                         'fecha_hora_location',
                         'asiento_location',
                         'codigo_ticket_location',
                         'ruta_location',
+                        'salida_location',
                         'operador_location',
                         'estado',
                         'es_predeterminada',
@@ -168,6 +173,20 @@ class TicketPlantillaApiTest extends TestCase
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['precio_location']);
+
+        config(['ticket.ticket_template_max_size_kb' => 0]);
+
+        $this->post('/api/admin/ticket-plantillas', [
+            'nombre' => 'Imagen pesada',
+            'image' => $this->validImage(),
+        ], [
+            'Accept' => 'application/json',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['image'])
+            ->assertJsonFragment([
+                'La imagen no debe superar 1 MB.',
+            ]);
     }
 
     public function test_admin_can_show_ticket_template_and_missing_template_returns_friendly_message(): void
@@ -203,6 +222,11 @@ class TicketPlantillaApiTest extends TestCase
                 'y' => 200,
                 'font_size' => 20,
             ]),
+            'salida_location' => json_encode([
+                'x' => 180,
+                'y' => 230,
+                'font_size' => 16,
+            ]),
             'es_predeterminada' => true,
         ], [], [
             'image' => $this->validImage('ticket-updated.png'),
@@ -213,7 +237,8 @@ class TicketPlantillaApiTest extends TestCase
             ->assertJsonPath('message', 'Plantilla de ticket actualizada correctamente.')
             ->assertJsonPath('ticket_plantilla.nombre', 'Plantilla Actualizada')
             ->assertJsonPath('ticket_plantilla.es_predeterminada', true)
-            ->assertJsonPath('ticket_plantilla.ruta_location.font_size', 20);
+            ->assertJsonPath('ticket_plantilla.ruta_location.font_size', 20)
+            ->assertJsonPath('ticket_plantilla.salida_location.font_size', 16);
 
         $ticketPlantilla->refresh();
 
@@ -240,10 +265,10 @@ class TicketPlantillaApiTest extends TestCase
             ->assertJsonPath('message', 'La plantilla de ticket debe estar activa para marcarse como predeterminada.');
     }
 
-    public function test_admin_can_delete_template_and_image_without_assigning_new_default(): void
+    public function test_admin_can_delete_non_default_template_and_image(): void
     {
         $admin = $this->createUser('administrador', 'admin@example.test');
-        $ticketPlantilla = $this->createTicketPlantilla('Plantilla Default', esPredeterminada: true);
+        $ticketPlantilla = $this->createTicketPlantilla('Plantilla Eliminable');
         $imagePath = $ticketPlantilla->image_path;
 
         Sanctum::actingAs($admin);
@@ -257,6 +282,34 @@ class TicketPlantillaApiTest extends TestCase
         ]);
         $this->assertFalse(TicketPlantilla::query()->where('es_predeterminada', true)->exists());
         Storage::assertMissing($imagePath);
+    }
+
+    public function test_admin_cannot_delete_default_template(): void
+    {
+        $admin = $this->createUser('administrador', 'admin@example.test');
+        $ticketPlantilla = $this->createTicketPlantilla('Plantilla Default', esPredeterminada: true);
+
+        Sanctum::actingAs($admin);
+
+        $this->deleteJson("/api/admin/ticket-plantillas/{$ticketPlantilla->id}")
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'No se puede eliminar una plantilla predeterminada.');
+
+        $this->assertDatabaseHas('ticket_plantillas', [
+            'id' => $ticketPlantilla->id,
+        ]);
+    }
+
+    public function test_admin_can_download_template_image(): void
+    {
+        $admin = $this->createUser('administrador', 'admin@example.test');
+        $ticketPlantilla = $this->createTicketPlantilla('Plantilla Descargable');
+
+        Sanctum::actingAs($admin);
+
+        $this->get("/api/admin/ticket-plantillas/{$ticketPlantilla->id}/download")
+            ->assertOk()
+            ->assertHeader('content-disposition');
     }
 
     public function test_toggle_status_alternates_status_and_removes_default_when_inactivated(): void

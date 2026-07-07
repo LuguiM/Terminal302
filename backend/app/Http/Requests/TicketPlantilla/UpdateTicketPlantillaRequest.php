@@ -14,6 +14,7 @@ class UpdateTicketPlantillaRequest extends FormRequest
         'asiento_location',
         'codigo_ticket_location',
         'ruta_location',
+        'salida_location',
         'operador_location',
     ];
 
@@ -34,12 +35,14 @@ class UpdateTicketPlantillaRequest extends FormRequest
     {
         $width = (int) config('ticket.ticket_template_width', 1000);
         $height = (int) config('ticket.ticket_template_height', 500);
+        $maxSizeKb = (int) config('ticket.ticket_template_max_size_kb', 10240);
 
         $rules = [
             'nombre' => ['required', 'string', 'max:255'],
             'image' => [
                 'nullable',
                 'image',
+                "max:{$maxSizeKb}",
                 Rule::dimensions()
                     ->width($width)
                     ->height($height),
@@ -70,9 +73,12 @@ class UpdateTicketPlantillaRequest extends FormRequest
     {
         $width = (int) config('ticket.ticket_template_width', 1000);
         $height = (int) config('ticket.ticket_template_height', 500);
+        $maxSizeKb = (int) config('ticket.ticket_template_max_size_kb', 10240);
+        $maxSizeMb = max(1, (int) ceil($maxSizeKb / 1024));
 
         return [
             'image.image' => 'El archivo debe ser una imagen valida.',
+            'image.max' => "La imagen no debe superar {$maxSizeMb} MB.",
             'image.dimensions' => "La imagen debe tener dimensiones exactas de {$width}x{$height} px.",
         ];
     }

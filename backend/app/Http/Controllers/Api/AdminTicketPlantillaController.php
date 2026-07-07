@@ -11,6 +11,7 @@ use App\Models\TicketPlantilla;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -136,6 +137,12 @@ class AdminTicketPlantillaController extends Controller
             return $this->missingTicketPlantillaResponse();
         }
 
+        if ($ticketPlantilla->es_predeterminada) {
+            return response()->json([
+                'message' => 'No se puede eliminar una plantilla predeterminada.',
+            ], 422);
+        }
+
         $imagePath = $ticketPlantilla->image_path;
 
         $ticketPlantilla->delete();
@@ -144,6 +151,26 @@ class AdminTicketPlantillaController extends Controller
         return response()->json([
             'message' => 'Plantilla de ticket eliminada correctamente.',
         ]);
+    }
+
+    public function download(int|string $ticketPlantilla): JsonResponse|StreamedResponse
+    {
+        $ticketPlantilla = $this->findTicketPlantilla($ticketPlantilla);
+
+        if (! $ticketPlantilla) {
+            return $this->missingTicketPlantillaResponse();
+        }
+
+        if (! Storage::exists($ticketPlantilla->image_path)) {
+            return response()->json([
+                'message' => 'El archivo de la plantilla no existe.',
+            ], 404);
+        }
+
+        return Storage::download(
+            $ticketPlantilla->image_path,
+            basename($ticketPlantilla->image_path),
+        );
     }
 
     public function toggleStatus(int|string $ticketPlantilla): JsonResponse

@@ -19,6 +19,7 @@ class TicketPlantilla extends Model
         'asiento_location',
         'codigo_ticket_location',
         'ruta_location',
+        'salida_location',
         'operador_location',
         'estado_id',
         'es_predeterminada',
@@ -36,6 +37,7 @@ class TicketPlantilla extends Model
             'asiento_location' => 'array',
             'codigo_ticket_location' => 'array',
             'ruta_location' => 'array',
+            'salida_location' => 'array',
             'operador_location' => 'array',
             'es_predeterminada' => 'boolean',
         ];

@@ -117,6 +117,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
             Route::get('/ticket-plantillas', [AdminTicketPlantillaController::class, 'index']);
             Route::post('/ticket-plantillas', [AdminTicketPlantillaController::class, 'store']);
+            Route::get('/ticket-plantillas/{ticketPlantilla}/download', [AdminTicketPlantillaController::class, 'download']);
             Route::get('/ticket-plantillas/{ticketPlantilla}', [AdminTicketPlantillaController::class, 'show']);
             Route::put('/ticket-plantillas/{ticketPlantilla}', [AdminTicketPlantillaController::class, 'update']);
             Route::delete('/ticket-plantillas/{ticketPlantilla}', [AdminTicketPlantillaController::class, 'destroy']);
