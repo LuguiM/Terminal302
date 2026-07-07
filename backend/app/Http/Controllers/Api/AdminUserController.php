@@ -135,6 +135,14 @@ class AdminUserController extends Controller
             ], 403);
         }
 
+        $user->loadMissing('role');
+
+        if (mb_strtolower((string) $user->role?->nombre) === 'validador') {
+            return response()->json([
+                'message' => 'No se permite cambiar el estado de usuarios validadores desde esta pantalla.',
+            ], 403);
+        }
+
         $user->forceFill([
             'estado_id' => (int) $user->estado_id === (int) $activeStatus->id
                 ? $inactiveStatus->id

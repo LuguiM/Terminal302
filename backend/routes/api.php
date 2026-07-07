@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\AdminHorarioController;
 use App\Http\Controllers\Api\AdminMenuRutaController;
 use App\Http\Controllers\Api\AdminOperadorController;
+use App\Http\Controllers\Api\AdminRoleController;
 use App\Http\Controllers\Api\AdminRutaController;
 use App\Http\Controllers\Api\AdminTicketPlantillaController;
 use App\Http\Controllers\Api\AuthController;
@@ -90,6 +91,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::middleware(['password.changed', 'role:administrador'])
         ->prefix('admin')
         ->group(function (): void {
+            Route::get('/roles', [AdminRoleController::class, 'index']);
+
             Route::get('/users', [AdminUserController::class, 'index']);
             Route::post('/users', [AdminUserController::class, 'store']);
             Route::get('/users/{user}', [AdminUserController::class, 'show']);

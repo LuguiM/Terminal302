@@ -64,6 +64,43 @@ class AdminUserApiTest extends TestCase
             ->assertJsonPath('users.0.email', $seller->email);
     }
 
+    public function test_admin_can_list_roles(): void
+    {
+        $admin = $this->createUser(roleName: 'administrador', email: 'admin@example.test');
+        $sellerRole = Role::query()->firstOrCreate(['nombre' => 'vendedor']);
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/admin/roles')
+            ->assertOk()
+            ->assertJsonStructure([
+                'roles' => [
+                    [
+                        'id',
+                        'nombre',
+                    ],
+                ],
+            ])
+            ->assertJsonFragment([
+                'id' => $sellerRole->id,
+                'nombre' => 'vendedor',
+            ]);
+    }
+
+    public function test_only_admin_users_can_access_admin_role_routes(): void
+    {
+        $seller = $this->createUser(roleName: 'vendedor', email: 'seller@example.test');
+
+        $this->getJson('/api/admin/roles')
+            ->assertUnauthorized();
+
+        Sanctum::actingAs($seller);
+
+        $this->getJson('/api/admin/roles')
+            ->assertForbidden()
+            ->assertJsonPath('message', 'No tiene permisos para acceder a este recurso.');
+    }
+
     public function test_admin_can_create_user_and_credentials_email_is_sent(): void
     {
         Mail::fake();
@@ -106,6 +143,7 @@ class AdminUserApiTest extends TestCase
     {
         $admin = $this->createUser(roleName: 'administrador', email: 'admin@example.test');
         $existing = $this->createUser(roleName: 'vendedor', email: 'existing@example.test');
+        $validatorRole = Role::query()->firstOrCreate(['nombre' => 'validador']);
 
         Sanctum::actingAs($admin);
 
@@ -134,6 +172,14 @@ class AdminUserApiTest extends TestCase
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['estado_id']);
+
+        $this->postJson('/api/admin/users', [
+            'name' => 'Validador Manual',
+            'email' => 'validador-manual@example.test',
+            'role_id' => $validatorRole->id,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['role_id']);
     }
 
     public function test_only_admin_users_can_access_admin_user_routes(): void
@@ -161,7 +207,6 @@ class AdminUserApiTest extends TestCase
         $this->putJson("/api/admin/users/{$user->id}", [
             'name' => 'Usuario Mismo Email',
             'email' => $user->email,
-            'role_id' => $user->role_id,
         ])
             ->assertOk()
             ->assertJsonPath('user.email', $user->email);
@@ -169,17 +214,15 @@ class AdminUserApiTest extends TestCase
         $this->putJson("/api/admin/users/{$user->id}", [
             'name' => 'Usuario Email Duplicado',
             'email' => $otherUser->email,
-            'role_id' => $user->role_id,
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['email']);
     }
 
-    public function test_admin_can_show_update_and_toggle_user_status(): void
+    public function test_admin_can_show_update_and_toggle_non_validator_user_status(): void
     {
         $admin = $this->createUser(roleName: 'administrador', email: 'admin@example.test');
         $user = $this->createUser(roleName: 'vendedor', email: 'user@example.test');
-        $newRole = Role::query()->firstOrCreate(['nombre' => 'validador']);
         Estado::query()->firstOrCreate(['id' => Estado::DESACTIVADO_ID], ['nombre' => 'Desactivado']);
 
         Sanctum::actingAs($admin);
@@ -191,17 +234,23 @@ class AdminUserApiTest extends TestCase
         $this->putJson("/api/admin/users/{$user->id}", [
             'name' => 'Usuario Editado',
             'email' => 'editado@example.test',
-            'role_id' => $newRole->id,
         ])
             ->assertOk()
             ->assertJsonPath('user.name', 'Usuario Editado')
             ->assertJsonPath('user.email', 'editado@example.test')
-            ->assertJsonPath('user.role.nombre', 'validador');
+            ->assertJsonPath('user.role.nombre', 'vendedor');
+
+        $this->putJson("/api/admin/users/{$user->id}", [
+            'name' => 'Usuario Con Rol',
+            'email' => 'con-rol@example.test',
+            'role_id' => $user->role_id,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['role_id']);
 
         $this->putJson("/api/admin/users/{$user->id}", [
             'name' => 'Usuario Con Estado',
             'email' => 'con-estado@example.test',
-            'role_id' => $newRole->id,
             'estado_id' => Estado::DESACTIVADO_ID,
         ])
             ->assertUnprocessable()
@@ -214,6 +263,28 @@ class AdminUserApiTest extends TestCase
         $this->patchJson("/api/admin/users/{$user->id}/toggle-status")
             ->assertOk()
             ->assertJsonPath('user.estado.nombre', 'Activo');
+
+        $user->refresh();
+
+        $this->assertSame(Estado::ACTIVO_ID, $user->estado_id);
+        $this->assertSame('vendedor', $user->role->nombre);
+    }
+
+    public function test_admin_cannot_toggle_validator_user_status_from_user_management(): void
+    {
+        $admin = $this->createUser(roleName: 'administrador', email: 'admin@example.test');
+        $validator = $this->createUser(roleName: 'validador', email: 'validator@example.test');
+        Estado::query()->firstOrCreate(['id' => Estado::DESACTIVADO_ID], ['nombre' => 'Desactivado']);
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/admin/users/{$validator->id}/toggle-status")
+            ->assertForbidden()
+            ->assertJsonPath('message', 'No se permite cambiar el estado de usuarios validadores desde esta pantalla.');
+
+        $validator->refresh();
+
+        $this->assertSame(Estado::ACTIVO_ID, $validator->estado_id);
     }
 
     public function test_admin_can_reset_user_password(): void

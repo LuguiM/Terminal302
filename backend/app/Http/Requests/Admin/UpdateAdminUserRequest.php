@@ -29,7 +29,7 @@ class UpdateAdminUserRequest extends FormRequest
                 'max:255',
                 Rule::unique('users', 'email')->ignore($user?->id),
             ],
-            'role_id' => ['required', 'integer', Rule::exists('roles', 'id')],
+            'role_id' => ['prohibited'],
             'estado_id' => ['prohibited'],
             'password' => ['prohibited'],
             'must_change_password' => ['prohibited'],
