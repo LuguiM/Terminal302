@@ -25,10 +25,10 @@ const printTickets = ref([])
 const showPrintModal = ref(false)
 
 const statusOptions = [
-  { title: 'Pendiente', value: 'pending' },
-  { title: 'Procesando', value: 'processing' },
-  { title: 'Completado', value: 'completed' },
-  { title: 'Fallido', value: 'failed' },
+  { title: 'Pendiente', value: 'pendiente' },
+  { title: 'Procesando', value: 'procesando' },
+  { title: 'Completado', value: 'completado' },
+  { title: 'Fallido', value: 'fallido' },
 ]
 
 const headers = [
@@ -63,10 +63,16 @@ const getRow = (item) => item?.raw ?? item
 
 const isSaleOpen = (ticket) => ticket?.venta_horario?.venta_cerrada === false
 
-const canRetryDelivery = (ticket) => {
-  const processingStatusName = String(ticket?.procesamiento_estado?.nombre ?? '').toLowerCase()
+const normalizeProcessingStatus = (status) => String(status ?? '')
+  .trim()
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
 
-  return isSaleOpen(ticket) && ['pending', 'failed'].includes(processingStatusName)
+const canRetryDelivery = (ticket) => {
+  const processingStatusName = normalizeProcessingStatus(ticket?.procesamiento_estado?.nombre)
+
+  return isSaleOpen(ticket) && ['pendiente', 'fallido'].includes(processingStatusName)
 }
 
 const setActionLoading = (ticketId, action, value) => {
