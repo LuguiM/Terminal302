@@ -8,6 +8,7 @@ Terminal302 es un proyecto academico para digitalizar la gestion operativa de un
 Terminal302/
 |-- backend/
 |-- frontend/
+|-- public-frontend/
 |-- lambda/
 |   `-- public-ticket-validation/
 |-- infrastructure/
@@ -41,6 +42,7 @@ Estos pasos dejan listo el proyecto completo usando solo Docker.
 Copy-Item .env.example .env
 Copy-Item backend\.env.example backend\.env
 Copy-Item frontend\.env.example frontend\.env
+Copy-Item public-frontend\.env.example public-frontend\.env
 ```
 
    En Bash:
@@ -49,6 +51,7 @@ Copy-Item frontend\.env.example frontend\.env
 cp .env.example .env
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
+cp public-frontend/.env.example public-frontend/.env
 ```
 
 2. Revisar credenciales en `.env`.
@@ -58,6 +61,7 @@ cp frontend/.env.example frontend/.env
 ```env
 BACKEND_PORT=8302
 FRONTEND_PORT=5173
+PUBLIC_FRONTEND_PORT=5174
 POSTGRES_PORT=15432
 
 POSTGRES_DB=terminal302
@@ -103,7 +107,8 @@ El seeder genera un administrador inicial con email configurable mediante `INITI
 Servicios disponibles:
 
 - Backend API: `http://localhost:8302/api`
-- Frontend: `http://localhost:5173`
+- Frontend privado: `http://localhost:5173`
+- Frontend publico: `http://localhost:5174`
 - Swagger UI: `http://localhost:8302/docs/api`
 - OpenAPI YAML: `http://localhost:8302/docs/api/openapi.yaml`
 
@@ -140,6 +145,18 @@ Para levantar tambien el frontend Vite:
 docker compose --profile frontend up -d
 ```
 
+Para levantar el frontend publico de consultas:
+
+```bash
+docker compose --profile public up -d
+```
+
+Para levantar backend, frontend privado y frontend publico:
+
+```bash
+docker compose --profile frontend --profile public up -d
+```
+
 ## Flujo Docker para desarrollo
 
 El repositorio incluye `docker-compose.override.yml`. Docker Compose lo carga automaticamente en desarrollo local y monta `./backend` dentro del contenedor. Esto permite que los cambios en controllers, routes, requests, resources, vistas Blade, Swagger y otros archivos PHP se reflejen sin reconstruir la imagen.
@@ -158,6 +175,18 @@ Levantar tambien el frontend:
 
 ```bash
 docker compose --profile frontend up -d
+```
+
+Levantar el frontend publico:
+
+```bash
+docker compose --profile public up -d
+```
+
+Levantar ambos frontends:
+
+```bash
+docker compose --profile frontend --profile public up -d
 ```
 
 Ver logs del backend:

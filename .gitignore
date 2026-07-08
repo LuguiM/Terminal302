@@ -15,6 +15,12 @@ frontend/.env
 frontend/.env.*
 !frontend/.env.example
 
+public-frontend/node_modules/
+public-frontend/dist/
+public-frontend/.env
+public-frontend/.env.*
+!public-frontend/.env.example
+
 .DS_Store
 Thumbs.db
 *.log
