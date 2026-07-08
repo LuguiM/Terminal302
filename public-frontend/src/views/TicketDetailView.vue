@@ -1,9 +1,17 @@
 <template>
-  <section class="public-page">
-    <v-container class="public-page__container">
-      <div class="page-heading">
-        <p class="eyebrow">Resultado de consulta</p>
-        <h1>Ticket {{ codigo }}</h1>
+  <section class="py-6 py-md-12">
+    <v-container class="public-medium">
+      <div class="d-grid align-center mb-8 public-subheader">
+        <v-btn
+          aria-label="Volver"
+          icon="mdi-arrow-left"
+          variant="text"
+          @click="goBack"
+        />
+        <h1 class="text-primary text-h5 font-weight-black text-center mb-0">
+          Resultado
+        </h1>
+        <span />
       </div>
 
       <v-alert
@@ -20,50 +28,50 @@
         type="article"
       />
 
-      <article v-else-if="ticket" class="detail-panel">
-        <div class="detail-panel__header">
+      <v-card
+        v-else-if="ticket"
+        class="pa-5 pa-sm-7"
+        elevation="8"
+        rounded="lg"
+        variant="outlined"
+      >
+        <div class="d-flex align-start justify-space-between ga-4 flex-wrap mb-6 pb-6 border-b">
           <div>
-            <span class="detail-label">Codigo</span>
-            <h2>{{ ticket.codigo_ticket }}</h2>
+            <div class="text-secondary text-caption font-weight-black text-uppercase">
+              Codigo
+            </div>
+            <h2 class="text-primary text-h4 font-weight-black">
+              {{ ticket.codigo_ticket }}
+            </h2>
           </div>
           <v-chip color="success" variant="tonal">
             {{ ticket.estado?.nombre || 'Consultado' }}
           </v-chip>
         </div>
 
-        <dl class="detail-grid">
-          <div>
-            <dt>Ruta</dt>
-            <dd>{{ ticket.ruta }} - {{ ticket.denominacion }}</dd>
-          </div>
-          <div>
-            <dt>Operador</dt>
-            <dd>{{ ticket.operador?.nombre_comercial || 'No disponible' }}</dd>
-          </div>
-          <div>
-            <dt>Fecha de operacion</dt>
-            <dd>{{ ticket.fecha_operacion || 'No disponible' }}</dd>
-          </div>
-          <div>
-            <dt>Dia y hora</dt>
-            <dd>{{ ticket.dia?.nombre || 'No disponible' }} · {{ ticket.hora_salida || 'No disponible' }}</dd>
-          </div>
-          <div>
-            <dt>Tipo de envio</dt>
-            <dd>{{ ticket.tipo_envio?.nombre || 'No disponible' }}</dd>
-          </div>
-          <div>
-            <dt>Sobreventa</dt>
-            <dd>{{ ticket.es_sobreventa ? 'Si' : 'No' }}</dd>
-          </div>
-        </dl>
-      </article>
+        <v-row>
+          <v-col
+            v-for="item in ticketDetails"
+            :key="item.label"
+            cols="12"
+            sm="6"
+          >
+            <div class="text-secondary text-caption font-weight-black text-uppercase mb-1">
+              {{ item.label }}
+            </div>
+            <div class="text-primary font-weight-bold">
+              {{ item.value }}
+            </div>
+          </v-col>
+        </v-row>
+      </v-card>
     </v-container>
   </section>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { getApiErrorMessage } from '@/services/api'
 import { getPublicTicket } from '@/services/publicTicketService'
@@ -75,9 +83,47 @@ const props = defineProps({
   },
 })
 
+const router = useRouter()
 const loading = ref(true)
 const ticket = ref(null)
 const errorMessage = ref('')
+
+const ticketDetails = computed(() => {
+  if (!ticket.value) {
+    return []
+  }
+
+  return [
+    {
+      label: 'Ruta',
+      value: `${ticket.value.ruta} - ${ticket.value.denominacion}`,
+    },
+    {
+      label: 'Operador',
+      value: ticket.value.operador?.nombre_comercial || 'No disponible',
+    },
+    {
+      label: 'Fecha de operacion',
+      value: ticket.value.fecha_operacion || 'No disponible',
+    },
+    {
+      label: 'Dia y hora',
+      value: `${ticket.value.dia?.nombre || 'No disponible'} / ${ticket.value.hora_salida || 'No disponible'}`,
+    },
+    {
+      label: 'Tipo de envio',
+      value: ticket.value.tipo_envio?.nombre || 'No disponible',
+    },
+    {
+      label: 'Sobreventa',
+      value: ticket.value.es_sobreventa ? 'Si' : 'No',
+    },
+  ]
+})
+
+const goBack = () => {
+  router.push({ name: 'ticket-search' })
+}
 
 onMounted(async () => {
   try {

@@ -1,40 +1,80 @@
 <template>
   <v-layout class="public-layout">
+    <v-navigation-drawer
+      v-model="drawerOpen"
+      location="right"
+      temporary
+    >
+      <div class="pa-6 border-b">
+        <RouterLink class="public-brand" :to="{ name: 'home' }" @click="drawerOpen = false">
+          <img class="public-brand__logo" src="@/assets/logo.png" alt="Terminal 302" />
+        </RouterLink>
+      </div>
+
+      <v-list class="pa-3" nav>
+        <v-list-item
+          v-for="item in navItems"
+          :key="item.name"
+          :active="isActiveItem(item)"
+          :prepend-icon="item.icon"
+          :title="item.label"
+          rounded="lg"
+          @click="navigateTo(item)"
+        />
+      </v-list>
+    </v-navigation-drawer>
+
     <v-app-bar
-      class="public-header"
+      border
       color="surface"
       elevation="0"
-      height="72"
+      height="92"
     >
-      <v-container class="public-header__inner">
+      <v-container class="d-flex align-center justify-space-between">
         <RouterLink class="public-brand" :to="{ name: 'home' }">
-          <span class="public-brand__mark">302</span>
-          <span class="public-brand__text">Terminal302</span>
+          <img class="public-brand__logo" src="@/assets/logo.png" alt="Terminal 302" />
         </RouterLink>
 
         <nav class="public-nav" aria-label="Navegacion publica">
           <v-btn
             v-for="item in navItems"
             :key="item.name"
-            :to="{ name: item.name }"
-            class="public-nav__button"
+            class="font-weight-black text-none"
             color="primary"
-            variant="text"
+            rounded="lg"
+            :variant="isActiveItem(item) ? 'tonal' : 'text'"
+            @click="navigateTo(item)"
           >
             <v-icon :icon="item.icon" size="20" start />
             {{ item.label }}
           </v-btn>
         </nav>
+
+        <v-btn
+          aria-label="Abrir menu"
+          class="public-menu-button"
+          color="primary"
+          icon="mdi-menu"
+          variant="text"
+          @click="drawerOpen = true"
+        />
       </v-container>
     </v-app-bar>
 
-    <v-main class="public-main">
+    <v-main class="bg-white">
       <router-view />
     </v-main>
   </v-layout>
 </template>
 
 <script setup>
+import { ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+
+const route = useRoute()
+const router = useRouter()
+const drawerOpen = ref(false)
+
 const navItems = [
   {
     name: 'home',
@@ -43,7 +83,7 @@ const navItems = [
   },
   {
     name: 'ticket-search',
-    label: 'Ticket',
+    label: 'Consulta',
     icon: 'mdi-ticket-confirmation-outline',
   },
   {
@@ -52,4 +92,19 @@ const navItems = [
     icon: 'mdi-map-marker-path',
   },
 ]
+
+const activeGroups = {
+  home: ['home'],
+  'ticket-search': ['ticket-search', 'ticket-detail'],
+  routes: ['routes', 'route-schedules'],
+}
+
+const isActiveItem = (item) => {
+  return activeGroups[item.name]?.includes(route.name)
+}
+
+const navigateTo = (item) => {
+  drawerOpen.value = false
+  router.push({ name: item.name })
+}
 </script>
