@@ -6,26 +6,44 @@ Terminal302 es un proyecto academico para digitalizar la gestion operativa de un
 
 ```text
 Terminal302/
-├── backend/
-├── frontend/
-├── lambda/
-│   └── public-ticket-validation/
-├── infrastructure/
-├── docs/
-├── docker-compose.yml
-└── README.md
+|-- backend/
+|-- frontend/
+|-- lambda/
+|   `-- public-ticket-validation/
+|-- infrastructure/
+|-- docs/
+|-- docker-compose.yml
+`-- README.md
 ```
 
 ## Requisitos
 
-- PHP 8.3+
-- Composer
-- Node.js 22+
-- Docker y Docker Compose
+- Git
+- Docker Desktop o Docker Engine con Docker Compose
 
-## Configuracion local
+No necesitas instalar PHP, Composer, Node.js ni PostgreSQL en tu maquina si vas a trabajar con Docker. El proyecto los ejecuta dentro de contenedores:
+
+- Backend: PHP 8.3
+- Frontend: Node.js 22
+- Base de datos: PostgreSQL 16
+
+Solo necesitas PHP 8.3+, Composer, Node.js 22+ y PostgreSQL si decides ejecutar el proyecto fuera de Docker.
+
+## Instalacion rapida con Docker
+
+Estos pasos dejan listo el proyecto completo usando solo Docker.
 
 1. Copiar variables de entorno:
+
+   En PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+Copy-Item backend\.env.example backend\.env
+Copy-Item frontend\.env.example frontend\.env
+```
+
+   En Bash:
 
 ```bash
 cp .env.example .env
@@ -33,58 +51,94 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-2. Ajustar credenciales locales en `.env` y `backend/.env`. Para Docker, `backend/.env` debe usar `DB_HOST=postgres` y `DB_PORT=5432`. El puerto publicado de PostgreSQL hacia tu maquina es `15432` por defecto para evitar choques con instalaciones locales.
+2. Revisar credenciales en `.env`.
 
-   Dentro de Docker:
+   Los valores por defecto funcionan para desarrollo local con Docker:
 
-   ```env
-   DB_HOST=postgres
-   DB_PORT=5432
-   ```
+```env
+BACKEND_PORT=8302
+FRONTEND_PORT=5173
+POSTGRES_PORT=15432
 
-   Desde herramientas en tu maquina, como DBeaver, TablePlus o psql local:
-
-   ```text
-   Host: localhost
-   Port: 15432
-   ```
-
-3. Generar la llave de Laravel:
-
-```bash
-cd backend
-php artisan key:generate
+POSTGRES_DB=terminal302
+POSTGRES_USER=terminal302
+POSTGRES_PASSWORD=change_me_locally
 ```
 
-4. Instalar dependencias si aun no existen:
+3. Verificar que `backend/.env` use el host interno de Docker para PostgreSQL:
+
+```env
+APP_URL=http://localhost:8302
+FRONTEND_URL=http://localhost:5173
+
+DB_CONNECTION=pgsql
+DB_HOST=postgres
+DB_PORT=5432
+DB_DATABASE=terminal302
+DB_USERNAME=terminal302
+```
+
+   Docker Compose inyecta `DB_PASSWORD` desde `.env` al contenedor del backend.
+
+4. Levantar backend, frontend y base de datos:
 
 ```bash
-composer install
-cd ../frontend
-npm install
+docker compose --profile frontend up -d --build
+```
+
+5. Generar la llave de Laravel dentro del contenedor:
+
+```bash
+docker compose exec backend php artisan key:generate
+```
+
+6. Ejecutar migraciones y seeders:
+
+```bash
+docker compose exec backend php artisan migrate --seed
+```
+
+El seeder genera un administrador inicial con email configurable mediante `INITIAL_ADMIN_EMAIL`. La contrasena temporal se muestra en consola una sola vez.
+
+Servicios disponibles:
+
+- Backend API: `http://localhost:8302/api`
+- Frontend: `http://localhost:5173`
+- Swagger UI: `http://localhost:8302/docs/api`
+- OpenAPI YAML: `http://localhost:8302/docs/api/openapi.yaml`
+
+## Conexion a PostgreSQL
+
+Dentro de Docker, Laravel se conecta a PostgreSQL usando:
+
+```env
+DB_HOST=postgres
+DB_PORT=5432
+```
+
+Desde herramientas en tu maquina, como DBeaver, TablePlus o psql local:
+
+```text
+Host: localhost
+Port: 15432
+Database: terminal302
+User: terminal302
+Password: change_me_locally
 ```
 
 ## Levantar con Docker
 
-Desde la raiz del proyecto:
+Desde la raiz del proyecto, para levantar solo backend y PostgreSQL:
 
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
 Para levantar tambien el frontend Vite:
 
 ```bash
-docker compose --profile frontend up --build
+docker compose --profile frontend up -d
 ```
-
-Backend: `http://localhost:8302`
-
-Frontend: `http://localhost:5173`
-
-Swagger UI: `http://localhost:8302/docs/api`
-
-OpenAPI YAML: `http://localhost:8302/docs/api/openapi.yaml`
 
 ## Flujo Docker para desarrollo
 
@@ -438,7 +492,7 @@ Cuando el vendedor genera una venta con tipo de envio `digital`, el backend crea
 ticket-events/pending/{codigo_ticket}.json
 ```
 
-Mientras ese evento no sea procesado, el historial de entregas digitales mostrara el estado `pending`.
+Mientras ese evento no sea procesado, el historial de entregas digitales mostrara el estado `Pendiente`.
 
 Para simular el procesamiento local de entregas digitales, ejecuta:
 
@@ -498,4 +552,4 @@ MAIL_PASSWORD=TU_PASSWORD_MAILTRAP
 
 ## Alcance actual
 
-Esta etapa no implementa tickets, QR, validacion publica ni integracion real con AWS. Las carpetas `lambda/`, `infrastructure/` y `docs/` quedan preparadas para crecer en fases posteriores.
+El proyecto incluye modulos de autenticacion, administracion, operadores, rutas, buses, horarios, venta de tickets, validacion y tickets digitales. La integracion real con AWS queda preparada para fases posteriores; por ahora las carpetas `lambda/`, `infrastructure/` y `docs/` sirven como base para ese crecimiento.

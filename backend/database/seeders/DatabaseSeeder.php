@@ -58,7 +58,8 @@ class DatabaseSeeder extends Seeder
             ['nombre' => 'Domingo', 'orden' => 7],
         ])->each(fn (array $dia) => Dia::query()->updateOrCreate(['orden' => $dia['orden']], $dia));
 
-        $temporaryPassword = Str::password(length: 14, symbols: false);
+        // $temporaryPassword = Str::password(length: 14, symbols: false);
+        $temporaryPassword = "alNW7UM51n5b"; // Temporal password for initial admin user
 
         User::query()->updateOrCreate(
             ['email' => env('INITIAL_ADMIN_EMAIL', 'admin@terminal302.local')],
