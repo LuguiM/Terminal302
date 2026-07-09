@@ -38,6 +38,16 @@ const routes = [
         path: 'admin',
         children: [
           {
+            path: 'dashboard',
+            name: 'admin-dashboard',
+            component: () => import('@/views/dashboard/PassengerFlowDashboardView.vue'),
+            props: { scope: 'admin' },
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/admin/dashboard',
+            },
+          },
+          {
             path: 'gestiones',
             children: [
               {
@@ -129,6 +139,16 @@ const routes = [
       {
         path: 'operador',
         children: [
+          {
+            path: 'dashboard',
+            name: 'operator-dashboard',
+            component: () => import('@/views/dashboard/PassengerFlowDashboardView.vue'),
+            props: { scope: 'operator' },
+            meta: {
+              requiresAuth: true,
+              permissionPath: '/operador/dashboard',
+            },
+          },
           {
             path: 'rutas',
             name: 'operator-routes',
