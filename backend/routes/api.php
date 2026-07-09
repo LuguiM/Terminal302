@@ -1,16 +1,18 @@
 <?php
 
-use App\Http\Controllers\Api\AdminUserController;
+use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\AdminHorarioController;
 use App\Http\Controllers\Api\AdminMenuRutaController;
 use App\Http\Controllers\Api\AdminOperadorController;
 use App\Http\Controllers\Api\AdminRoleController;
 use App\Http\Controllers\Api\AdminRutaController;
 use App\Http\Controllers\Api\AdminTicketPlantillaController;
+use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BusController;
 use App\Http\Controllers\Api\MeMenuRutaController;
 use App\Http\Controllers\Api\OperadorController;
+use App\Http\Controllers\Api\OperadorDashboardController;
 use App\Http\Controllers\Api\OperadorEmpleadoController;
 use App\Http\Controllers\Api\OperadorHorarioController;
 use App\Http\Controllers\Api\OperadorRutaController;
@@ -43,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
             Route::middleware('operator.active')->group(function (): void {
                 Route::get('/me', [OperadorController::class, 'me']);
+                Route::get('/dashboard/flujo-pasajeros', [OperadorDashboardController::class, 'flujoPasajeros']);
                 Route::put('/{operador}', [OperadorController::class, 'update']);
 
                 Route::get('/empleados', [OperadorEmpleadoController::class, 'index']);
@@ -94,6 +97,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::middleware(['password.changed', 'role:administrador'])
         ->prefix('admin')
         ->group(function (): void {
+            Route::get('/dashboard/flujo-pasajeros', [AdminDashboardController::class, 'flujoPasajeros']);
+
             Route::get('/roles', [AdminRoleController::class, 'index']);
 
             Route::get('/users', [AdminUserController::class, 'index']);

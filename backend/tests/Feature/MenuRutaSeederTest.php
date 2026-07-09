@@ -20,6 +20,7 @@ class MenuRutaSeederTest extends TestCase
 
         $expectedRoutes = [
             'administrador' => [
+                '/admin/dashboard' => null,
                 '/admin/gestiones/usuarios' => 'Gestiones',
                 '/admin/gestiones/operadores' => 'Gestiones',
                 '/admin/gestiones/horarios' => 'Gestiones',
@@ -27,18 +28,19 @@ class MenuRutaSeederTest extends TestCase
                 '/admin/configuracion/plantilla' => 'Configuracion',
             ],
             'empresario' => [
-                '/operador/rutas' => 'Operacion',
-                '/operador/unidades' => 'Operacion',
-                '/operador/empleados' => 'Operacion',
-                '/operador/horarios' => 'Operacion',
+                '/operador/dashboard' => null,
+                '/operador/rutas' => null,
+                '/operador/unidades' => null,
+                '/operador/empleados' => null,
+                '/operador/horarios' => null,
             ],
             'vendedor' => [
-                '/vendedor/tickets' => 'Ventas',
-                '/vendedor/tickets/entregas' => 'Ventas',
-                '/vendedor/historial' => 'Ventas',
+                '/vendedor/tickets' => null,
+                '/vendedor/tickets/entregas' => null,
+                '/vendedor/historial' => null,
             ],
             'validador' => [
-                '/validador/tickets' => 'Validacion',
+                '/validador/tickets' => null,
             ],
         ];
 
@@ -57,6 +59,13 @@ class MenuRutaSeederTest extends TestCase
                 $this->assertNull($child->base_url);
 
                 $parent = $child->padre()->first();
+
+                if ($parentTitle === null) {
+                    $this->assertNull($parent);
+
+                    continue;
+                }
+
                 $this->assertNotNull($parent);
                 $this->assertSame($parentTitle, $parent->titulo);
                 $this->assertSame('', $parent->ruta);
@@ -75,11 +84,12 @@ class MenuRutaSeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $initialCount = MenuRuta::query()->count();
-        $sellerRoute = MenuRuta::query()->where('ruta', '/vendedor/tickets')->firstOrFail();
-        $sellerParent = $sellerRoute->padre()->firstOrFail();
+        $adminRoute = MenuRuta::query()->where('ruta', '/admin/gestiones/usuarios')->firstOrFail();
+        $adminParent = $adminRoute->padre()->firstOrFail();
+        $operatorDashboard = MenuRuta::query()->where('ruta', '/operador/dashboard')->firstOrFail();
 
-        $sellerRoute->update([
-            'titulo' => 'Tickets viejo',
+        $adminRoute->update([
+            'titulo' => 'Usuarios viejo',
             'orden' => '9.90',
             'icono' => 'mdi-alert',
             'visible' => false,
@@ -87,32 +97,40 @@ class MenuRutaSeederTest extends TestCase
             'base_url' => 'http://localhost:5173',
             'estado_id' => Estado::DESACTIVADO_ID,
         ]);
-        $sellerParent->update([
+        $adminParent->update([
             'orden' => '8.80',
             'icono' => 'mdi-alert',
             'visible' => false,
             'estado_id' => Estado::DESACTIVADO_ID,
+        ]);
+        $operatorDashboard->update([
+            'titulo' => 'Panel viejo',
+            'dependencia' => $adminParent->id,
         ]);
 
         $this->seed(MenuRutaSeeder::class);
 
         $this->assertSame($initialCount, MenuRuta::query()->count());
 
-        $sellerRoute->refresh();
-        $sellerParent->refresh();
+        $adminRoute->refresh();
+        $adminParent->refresh();
+        $operatorDashboard->refresh();
 
-        $this->assertSame('Vender tickets', $sellerRoute->titulo);
-        $this->assertSame('1.10', $sellerRoute->orden);
-        $this->assertSame('mdi-ticket-plus', $sellerRoute->icono);
-        $this->assertTrue((bool) $sellerRoute->visible);
-        $this->assertTrue((bool) $sellerRoute->requiere_autenticacion);
-        $this->assertNull($sellerRoute->base_url);
-        $this->assertSame(Estado::ACTIVO_ID, (int) $sellerRoute->estado_id);
-        $this->assertSame($sellerParent->id, $sellerRoute->dependencia);
+        $this->assertSame('Usuarios', $adminRoute->titulo);
+        $this->assertSame('3.10', $adminRoute->orden);
+        $this->assertSame('mdi-account-group', $adminRoute->icono);
+        $this->assertTrue((bool) $adminRoute->visible);
+        $this->assertTrue((bool) $adminRoute->requiere_autenticacion);
+        $this->assertNull($adminRoute->base_url);
+        $this->assertSame(Estado::ACTIVO_ID, (int) $adminRoute->estado_id);
+        $this->assertSame($adminParent->id, $adminRoute->dependencia);
 
-        $this->assertSame('1.00', $sellerParent->orden);
-        $this->assertSame('mdi-ticket', $sellerParent->icono);
-        $this->assertTrue((bool) $sellerParent->visible);
-        $this->assertSame(Estado::ACTIVO_ID, (int) $sellerParent->estado_id);
+        $this->assertSame('3.00', $adminParent->orden);
+        $this->assertSame('mdi-account-cog', $adminParent->icono);
+        $this->assertTrue((bool) $adminParent->visible);
+        $this->assertSame(Estado::ACTIVO_ID, (int) $adminParent->estado_id);
+
+        $this->assertSame('Dashboard', $operatorDashboard->titulo);
+        $this->assertNull($operatorDashboard->dependencia);
     }
 }

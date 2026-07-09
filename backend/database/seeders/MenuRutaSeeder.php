@@ -29,6 +29,25 @@ class MenuRutaSeeder extends Seeder
             }
 
             collect($sections)->each(function (array $section) use ($role, $activeStatus): void {
+                if (count($section['dependencias']) === 0) {
+                    $this->upsertMenuRuta(
+                        role: $role,
+                        attributes: [
+                            'titulo' => $section['titulo'],
+                            'ruta' => $section['ruta'],
+                            'orden' => $section['orden'],
+                            'icono' => $section['icono'],
+                            'dependencia' => null,
+                        ],
+                        activeStatusId: $activeStatus->id,
+                        lookup: [
+                            'ruta' => $section['ruta'],
+                        ],
+                    );
+
+                    return;
+                }
+
                 $parent = $this->upsertMenuRuta(
                     role: $role,
                     attributes: [
@@ -88,7 +107,17 @@ class MenuRutaSeeder extends Seeder
                 : $query->where('dependencia', $lookup['dependencia']);
         }
 
-        $menuRuta = $query->first() ?? new MenuRuta([
+        $menuRuta = $query->first();
+
+        if (! $menuRuta && array_key_exists('ruta', $lookup) && $attributes['dependencia'] === null) {
+            $menuRuta = MenuRuta::query()
+                ->where('role_id', $role->id)
+                ->where('titulo', $attributes['titulo'])
+                ->whereNull('dependencia')
+                ->first();
+        }
+
+        $menuRuta ??= new MenuRuta([
             'role_id' => $role->id,
         ]);
 
@@ -110,6 +139,7 @@ class MenuRutaSeeder extends Seeder
      *     titulo: string,
      *     orden: string,
      *     icono: string,
+     *     ruta?: string,
      *     dependencias: array<int, array{titulo: string, ruta: string, orden: string, icono: string}>
      * }>>
      */
@@ -121,7 +151,7 @@ class MenuRutaSeeder extends Seeder
                     'titulo' => 'Dashboard',
                     'orden' => '1.00',
                     'icono' => 'mdi-monitor-dashboard',
-                    'ruta' => '/dashboard',
+                    'ruta' => '/admin/dashboard',
                     'dependencias' => [],
                 ],
                 [
@@ -156,7 +186,7 @@ class MenuRutaSeeder extends Seeder
                     'titulo' => 'Dashboard',
                     'orden' => '1.00',
                     'icono' => 'mdi-monitor-dashboard',
-                    'ruta' => '/dashboard',
+                    'ruta' => '/operador/dashboard',
                     'dependencias' => [],
                 ],
                 [
