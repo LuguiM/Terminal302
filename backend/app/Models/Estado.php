@@ -7,12 +7,89 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Estado extends Model
 {
+    public const ACTIVO_ID = 1;
+    public const DESACTIVADO_ID = 2;
+    public const EMITIDO_ID = 3;
+    public const VALIDADO_ID = 4;
+    public const CANCELADO_ID = 5;
+    public const PROGRAMADO_ID = 6;
+
     protected $fillable = [
+        'id',
         'nombre',
     ];
+
+    public static function activo(): ?self
+    {
+        return self::query()
+            ->whereRaw('LOWER(nombre) = ?', ['activo'])
+            ->first();
+    }
+
+    public static function inactivo(): ?self
+    {
+        return self::query()
+            ->whereRaw('LOWER(nombre) IN (?, ?)', ['inactivo', 'desactivado'])
+            ->first();
+    }
 
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function operadores(): HasMany
+    {
+        return $this->hasMany(Operador::class);
+    }
+
+    public function rutas(): HasMany
+    {
+        return $this->hasMany(Ruta::class);
+    }
+
+    public function operadorRutas(): HasMany
+    {
+        return $this->hasMany(OperadorRuta::class);
+    }
+
+    public function buses(): HasMany
+    {
+        return $this->hasMany(Bus::class);
+    }
+
+    public function horarios(): HasMany
+    {
+        return $this->hasMany(Horario::class);
+    }
+
+    public function ventasHorarios(): HasMany
+    {
+        return $this->hasMany(VentaHorario::class);
+    }
+
+    public function ticketPlantillas(): HasMany
+    {
+        return $this->hasMany(TicketPlantilla::class);
+    }
+
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
+    public function tipoEnvios(): HasMany
+    {
+        return $this->hasMany(TipoEnvio::class);
+    }
+
+    public function procesamientoEstados(): HasMany
+    {
+        return $this->hasMany(ProcesamientoEstado::class);
+    }
+
+    public function menuRutas(): HasMany
+    {
+        return $this->hasMany(MenuRuta::class);
     }
 }

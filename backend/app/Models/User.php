@@ -6,6 +6,8 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -61,5 +63,30 @@ class User extends Authenticatable
     public function estado(): BelongsTo
     {
         return $this->belongsTo(Estado::class);
+    }
+
+    public function operador(): HasOne
+    {
+        return $this->hasOne(Operador::class);
+    }
+
+    public function operadorEmpleado(): HasOne
+    {
+        return $this->hasOne(OperadorEmpleado::class);
+    }
+
+    public function ventasHorariosCerradas(): HasMany
+    {
+        return $this->hasMany(VentaHorario::class, 'cerrada_por');
+    }
+
+    public function ticketsVendidos(): HasMany
+    {
+        return $this->hasMany(Ticket::class, 'vendedor_id');
+    }
+
+    public function validacionesRealizadas(): HasMany
+    {
+        return $this->hasMany(Validacion::class, 'validador_id');
     }
 }

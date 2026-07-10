@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TipoBus extends Model
 {
@@ -11,4 +12,9 @@ class TipoBus extends Model
     protected $fillable = [
         'nombre',
     ];
+
+    public function buses(): HasMany
+    {
+        return $this->hasMany(Bus::class);
+    }
 }

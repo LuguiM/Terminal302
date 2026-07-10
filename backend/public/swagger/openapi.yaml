@@ -11,7 +11,132 @@ servers:
 tags:
   - name: Autenticacion
     description: Login, sesion y cambio obligatorio de contrasena inicial.
+  - name: Administracion de usuarios
+    description: Gestion de usuarios disponible solo para administradores.
+  - name: Operadores
+    description: Registro y administracion de operadores de transporte.
+  - name: Rutas del operador
+    description: Gestion de rutas asignadas al operador del empresario autenticado.
+  - name: Buses
+    description: Gestion de buses del operador del empresario autenticado.
+  - name: Horarios
+    description: Gestion administrativa y consulta de horarios de salida.
+  - name: Ventas de horarios
+    description: Soporte operativo para consulta y cierre de ciclos de venta.
+  - name: Tickets
+    description: Venta y listado de tickets emitidos por vendedores.
+  - name: Validaciones
+    description: Validacion interna autenticada de tickets para abordaje.
+  - name: Plantillas de ticket
+    description: Gestion administrativa de plantillas visuales para tickets.
+  - name: Rutas
+    description: Catalogo administrativo de rutas de transporte.
+  - name: Consultas publicas
+    description: Endpoints sin autenticacion para rutas, horarios y consulta publica de tickets.
+  - name: Menu de rutas
+    description: Configuracion administrativa y consulta autenticada del menu principal del frontend.
 paths:
+  /public/rutas:
+    get:
+      tags:
+        - Consultas publicas
+      summary: Listar rutas publicas
+      description: Devuelve rutas activas con al menos un horario activo.
+      operationId: publicListRutas
+      security: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista paginada de rutas publicas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicRutaPaginatedResponse'
+        '500':
+          description: Falta un estado requerido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /public/rutas/{ruta}/horarios:
+    get:
+      tags:
+        - Consultas publicas
+      summary: Listar horarios publicos por ruta
+      description: Devuelve horarios activos de una ruta activa, opcionalmente filtrados por dia.
+      operationId: publicListHorariosPorRuta
+      security: []
+      parameters:
+        - in: path
+          name: ruta
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: dia_id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Horarios activos de la ruta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicHorarioRutaResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Ruta inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '500':
+          description: Falta un estado requerido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /public/tickets/{codigo_ticket}:
+    get:
+      tags:
+        - Consultas publicas
+      summary: Consultar ticket publicamente
+      description: Devuelve informacion publica limitada de un ticket sin validar ni modificar datos.
+      operationId: publicShowTicketByCode
+      security: []
+      parameters:
+        - in: path
+          name: codigo_ticket
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Informacion publica del ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicTicketResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: El ticket no tiene relaciones publicas necesarias.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
   /login:
     post:
       tags:
@@ -87,6 +212,24 @@ paths:
                 $ref: '#/components/schemas/UserResourceResponse'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+  /me/menu-rutas:
+    get:
+      tags:
+        - Menu de rutas
+      summary: Obtener menu del usuario autenticado
+      description: Devuelve rutas activas y visibles asociadas al rol del usuario autenticado en formato jerarquico.
+      operationId: meMenuRutas
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Menu principal del usuario autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuRutaTreeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
   /change-initial-password:
     post:
       tags:
@@ -123,7 +266,2073 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
+  /operador/me:
+    get:
+      tags:
+        - Operadores
+      summary: Obtener operador propio
+      description: Devuelve el operador asociado al empresario autenticado. Si el operador esta desactivado, responde 403.
+      operationId: operadorMe
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Operador del empresario autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorResourceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /operador:
+    post:
+      tags:
+        - Operadores
+      summary: Registrar operador propio
+      description: Crea el operador del empresario autenticado y lo deja activo automaticamente.
+      operationId: operadorCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperadorRequest'
+            examples:
+              empresa:
+                value:
+                  tipo_operador_id: 1
+                  nombre_comercial: Transportes Central
+                  razon_social: Transportes Central S.A.
+                  representante_legal: Maria Lopez
+                  nit: 0614-290695-101-3
+                  telefono: 2222-3333
+                  correo_administrativo: contacto@central.test
+                  direccion: Terminal central
+              persona:
+                value:
+                  tipo_operador_id: 2
+                  nombre_comercial: Juan Perez
+                  dui: 12345678-9
+                  telefono: 7777-8888
+                  telefono_opcional: 2222-3333
+      responses:
+        '201':
+          description: Operador registrado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: El empresario ya tiene operador registrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /operador/{id}:
+    put:
+      tags:
+        - Operadores
+      summary: Actualizar operador propio
+      description: Actualiza el operador si pertenece al empresario autenticado.
+      operationId: operadorUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OperadorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperadorRequest'
+      responses:
+        '200':
+          description: Operador actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /operador/rutas:
+    get:
+      tags:
+        - Rutas del operador
+      summary: Listar rutas asignadas al operador
+      description: Devuelve asignaciones paginadas del operador del empresario autenticado.
+      operationId: operadorListRutas
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+      responses:
+        '200':
+          description: Lista paginada de rutas asignadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorRutaPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Rutas del operador
+      summary: Asignar ruta al operador
+      description: Asigna una ruta activa del catalogo al operador del empresario autenticado.
+      operationId: operadorCreateRuta
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperadorRutaRequest'
+            example:
+              ruta_id: 1
+      responses:
+        '201':
+          description: Ruta asignada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorRutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: La ruta ya esta asignada al operador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion o ruta inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /operador/rutas/{id}:
+    delete:
+      tags:
+        - Rutas del operador
+      summary: Eliminar ruta asignada
+      description: Elimina fisicamente una asignacion propia del operador autenticado.
+      operationId: operadorDeleteRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OperadorRutaId'
+      responses:
+        '200':
+          description: Ruta asignada eliminada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /operador/rutas/{id}/toggle-status:
+    patch:
+      tags:
+        - Rutas del operador
+      summary: Alternar estado de ruta asignada
+      description: Cambia automaticamente entre activo e inactivo sin recibir body.
+      operationId: operadorToggleRutaStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OperadorRutaId'
+      responses:
+        '200':
+          description: Estado de la ruta asignada actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorRutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /operador/buses:
+    get:
+      tags:
+        - Buses
+      summary: Listar buses del operador
+      description: Devuelve buses paginados del operador del empresario autenticado. Permite filtros por ruta, estado y busqueda por placa, marca o nombre de unidad.
+      operationId: operadorListBuses
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: ruta_id
+          schema:
+            type: integer
+          example: 1
+        - in: query
+          name: estado_id
+          schema:
+            type: integer
+          example: 1
+        - in: query
+          name: search
+          schema:
+            type: string
+          example: AB-123
+      responses:
+        '200':
+          description: Lista paginada de buses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Buses
+      summary: Registrar bus del operador
+      description: Crea un bus propio del operador autenticado y lo deja activo automaticamente. La ruta debe estar activa y asignada activamente al operador.
+      operationId: operadorCreateBus
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+            example:
+              ruta_id: 1
+              placa: AB-123
+              marca: Mercedes
+              nombre_unidad: Unidad Centro
+              capacidad: 45
+              tipo_bus_id: 1
+      responses:
+        '201':
+          description: Bus registrado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion, ruta inactiva o tipo de bus inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /operador/buses/{id}:
+    put:
+      tags:
+        - Buses
+      summary: Actualizar bus del operador
+      description: Actualiza un bus si pertenece al operador del empresario autenticado. No permite cambiar operador_id ni estado_id.
+      operationId: operadorUpdateBus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BusId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+      responses:
+        '200':
+          description: Bus actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /operador/buses/{id}/toggle-status:
+    patch:
+      tags:
+        - Buses
+      summary: Alternar estado de bus
+      description: Cambia automaticamente entre activo e inactivo sin recibir body.
+      operationId: operadorToggleBusStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BusId'
+      responses:
+        '200':
+          description: Estado del bus actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /operador/horarios/rutas:
+    get:
+      tags:
+        - Horarios
+      summary: Listar rutas con horarios del operador
+      description: Devuelve rutas activas asignadas activamente al operador autenticado.
+      operationId: operadorHorarioRutas
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Rutas disponibles para consulta de horarios.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutasListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /operador/horarios/rutas/{id}:
+    get:
+      tags:
+        - Horarios
+      summary: Listar dias con horarios activos del operador
+      description: Devuelve solo los dias que tienen horarios activos para la ruta y operador autenticado.
+      operationId: operadorHorarioDiasPorRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RutaId'
+      responses:
+        '200':
+          description: Dias con horarios.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HorarioDiasResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Ruta inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /operador/horarios:
+    get:
+      tags:
+        - Horarios
+      summary: Listar horarios activos del operador por ruta y dia
+      operationId: operadorHorariosPorRutaDia
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: ruta_id
+          required: true
+          schema:
+            type: integer
+          example: 1
+        - in: query
+          name: dia_id
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Horarios activos del operador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HorariosListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /vendedor/rutas-disponibles:
+    get:
+      tags:
+        - Ventas de horarios
+      summary: Listar rutas disponibles para venta
+      description: Devuelve rutas activas que tienen al menos un horario activo asociado.
+      operationId: vendedorRutasDisponibles
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Rutas disponibles.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutasListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /vendedor/rutas/{id}/horarios-disponibles:
+    get:
+      tags:
+        - Ventas de horarios
+      summary: Consultar horarios disponibles de ruta
+      description: Devuelve el horario en meta y el proximo a salir. Crea automaticamente ventas_horarios para la fecha operativa actual si no existen.
+      operationId: vendedorHorariosDisponiblesPorRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RutaId'
+      responses:
+        '200':
+          description: Horarios disponibles para venta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HorariosDisponiblesVentaResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Ruta inactiva o no se pudo determinar horario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /vendedor/ventas-horarios/{id}/cerrar:
+    patch:
+      tags:
+        - Ventas de horarios
+      summary: Cerrar venta de horario
+      description: Cierra el ciclo operativo de venta de un horario. El vendedor autenticado se asigna automaticamente.
+      operationId: vendedorCerrarVentaHorario
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VentaHorarioId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CerrarVentaHorarioRequest'
+            example:
+              motivo_cierre: Unidad completa
+      responses:
+        '200':
+          description: Venta de horario cerrada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VentaHorarioMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: La venta de horario ya esta cerrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /vendedor/tickets:
+    get:
+      tags:
+        - Tickets
+      summary: Listar tickets vendidos
+      description: Devuelve tickets paginados vendidos por el vendedor autenticado.
+      operationId: vendedorListTickets
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: venta_horario_id
+          schema:
+            type: integer
+        - in: query
+          name: estado_id
+          schema:
+            type: integer
+        - in: query
+          name: codigo_ticket
+          schema:
+            type: string
+        - in: query
+          name: tipo_envio_id
+          schema:
+            type: integer
+        - in: query
+          name: procesamiento_estado_id
+          schema:
+            type: integer
+        - in: query
+          name: processing_status_name
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed]
+      responses:
+        '200':
+          description: Lista paginada de tickets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Tickets
+      summary: Vender tickets
+      description: Genera tickets sobre una venta_horario activa y actualiza contadores de venta.
+      operationId: vendedorCreateTickets
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketStoreRequest'
+            examples:
+              impreso:
+                value:
+                  venta_horario_id: 12
+                  cantidad: 2
+                  tipo_envio_id: 1
+              digital:
+                value:
+                  venta_horario_id: 12
+                  cantidad: 3
+                  tipo_envio_id: 2
+                  correo_destino: cliente@email.com
+                  telefono_destino: '77777777'
+      responses:
+        '201':
+          description: Tickets generados correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketSaleResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Venta cerrada o capacidad alcanzada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion o regla de negocio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta un estado requerido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /vendedor/tickets/entregas:
+    get:
+      tags:
+        - Tickets
+      summary: Listar entregas digitales
+      description: Devuelve tickets digitales vendidos por el vendedor autenticado para historial de procesamiento.
+      operationId: vendedorListTicketEntregas
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: procesamiento_estado_id
+          schema:
+            type: integer
+        - in: query
+          name: processing_status_name
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed]
+        - in: query
+          name: venta_horario_id
+          schema:
+            type: integer
+        - in: query
+          name: codigo_ticket
+          schema:
+            type: string
+        - in: query
+          name: fecha
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Lista paginada de tickets digitales.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /vendedor/tickets/{id}/retry-processing:
+    post:
+      tags:
+        - Tickets
+      summary: Reintentar procesamiento digital
+      description: Regenera el evento JSON de procesamiento para un ticket digital propio en estado pending o failed.
+      operationId: vendedorRetryTicketProcessing
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Procesamiento reintentado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketRetryProcessingResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: El ticket no es digital o no permite reintento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '500':
+          description: No se pudo publicar el evento de procesamiento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /vendedor/tickets/{id}/print:
+    get:
+      tags:
+        - Tickets
+      summary: Obtener datos de impresion de ticket
+      description: Devuelve la imagen final si existe o datos basicos para renderizar una vista imprimible.
+      operationId: vendedorPrintTicket
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Datos de impresion del ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPrintResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /validador/tickets/validar:
+    post:
+      tags:
+        - Validaciones
+      summary: Validar ticket internamente
+      description: Valida un ticket por codigo, registra auditoria y cambia su estado a validado.
+      operationId: validadorValidarTicket
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidarTicketRequest'
+            example:
+              codigo_ticket: TKT-20260630-ABCD123456
+              observacion: Abordaje confirmado
+      responses:
+        '200':
+          description: Ticket validado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidacionTicketResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: El ticket pertenece a otro operador o el usuario no tiene permisos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El ticket ya fue validado o esta cancelado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion o ticket no emitido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta un estado requerido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /validador/validaciones:
+    get:
+      tags:
+        - Validaciones
+      summary: Listar validaciones realizadas
+      description: Devuelve validaciones paginadas realizadas por el validador autenticado.
+      operationId: validadorListValidaciones
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: ticket_id
+          schema:
+            type: integer
+        - in: query
+          name: fecha_validacion
+          schema:
+            type: string
+            format: date
+          example: '2026-06-30'
+      responses:
+        '200':
+          description: Lista paginada de validaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidacionPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/horarios/rutas:
+    get:
+      tags:
+        - Horarios
+      summary: Listar rutas activas para horarios
+      operationId: adminHorarioRutas
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          example: 302
+      responses:
+        '200':
+          description: Rutas activas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutasListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/horarios/rutas/{id}:
+    get:
+      tags:
+        - Horarios
+      summary: Listar dias con horarios por ruta
+      description: Devuelve los dias que tienen horarios asignados para una ruta.
+      operationId: adminHorarioDiasPorRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RutaId'
+      responses:
+        '200':
+          description: Dias con horarios.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HorarioDiasResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/horarios/rutas/{id}/operadores:
+    get:
+      tags:
+        - Horarios
+      summary: Listar operadores activos por ruta
+      operationId: adminHorarioOperadoresPorRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RutaId'
+      responses:
+        '200':
+          description: Operadores activos con ruta asignada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadoresListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Ruta inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /admin/horarios/buses:
+    get:
+      tags:
+        - Horarios
+      summary: Listar buses activos por ruta y operador
+      operationId: adminHorarioBusesPorRutaOperador
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: ruta_id
+          required: true
+          schema:
+            type: integer
+          example: 1
+        - in: query
+          name: operador_id
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Buses activos disponibles.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusesListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /admin/horarios:
+    get:
+      tags:
+        - Horarios
+      summary: Listar horarios por ruta y dia
+      operationId: adminHorariosPorRutaDia
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: ruta_id
+          required: true
+          schema:
+            type: integer
+          example: 1
+        - in: query
+          name: dia_id
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Horarios de la ruta y dia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HorariosListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+    post:
+      tags:
+        - Horarios
+      summary: Crear horario
+      operationId: adminHorarioCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HorarioRequest'
+      responses:
+        '201':
+          description: Horario creado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HorarioMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Horario duplicado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /admin/horarios/{id}:
+    put:
+      tags:
+        - Horarios
+      summary: Actualizar horario
+      operationId: adminHorarioUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/HorarioId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HorarioRequest'
+      responses:
+        '200':
+          description: Horario actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HorarioMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Horario duplicado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+    delete:
+      tags:
+        - Horarios
+      summary: Eliminar horario
+      description: Eliminacion fisica del horario. Solo administradores.
+      operationId: adminHorarioDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/HorarioId'
+      responses:
+        '200':
+          description: Horario eliminado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/horarios/{id}/toggle-status:
+    patch:
+      tags:
+        - Horarios
+      summary: Alternar estado de horario
+      operationId: adminHorarioToggleStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/HorarioId'
+      responses:
+        '200':
+          description: Estado del horario actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HorarioMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/operadores:
+    get:
+      tags:
+        - Operadores
+      summary: Listar operadores
+      description: Devuelve operadores paginados con empresario, tipo y estado. Solo administradores.
+      operationId: adminListOperadores
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+      responses:
+        '200':
+          description: Lista paginada de operadores.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/operadores/{id}:
+    get:
+      tags:
+        - Operadores
+      summary: Ver operador
+      operationId: adminShowOperador
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OperadorId'
+      responses:
+        '200':
+          description: Detalle de operador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorResourceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/operadores/{id}/toggle-status:
+    patch:
+      tags:
+        - Operadores
+      summary: Alternar estado de operador
+      description: Si el operador esta activo exige motivo de desactivacion; si esta inactivo lo reactiva y limpia el motivo.
+      operationId: adminToggleOperadorStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OperadorId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToggleOperadorStatusRequest'
+            example:
+              motivo_desactivacion: Documentacion vencida
+      responses:
+        '200':
+          description: Estado del operador actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperadorMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Falta motivo de desactivacion o hay error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/rutas:
+    get:
+      tags:
+        - Rutas
+      summary: Listar rutas
+      description: Devuelve rutas paginadas con su estado. Solo administradores.
+      operationId: adminListRutas
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+      responses:
+        '200':
+          description: Lista paginada de rutas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutaPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Rutas
+      summary: Crear ruta
+      description: Crea una ruta y la deja activa automaticamente.
+      operationId: adminCreateRuta
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RutaRequest'
+            example:
+              ruta: 301-A
+              denominacion: Usulutan - San Salvador
+              tarifa: 1.50
+      responses:
+        '201':
+          description: Ruta creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/rutas/{id}:
+    put:
+      tags:
+        - Rutas
+      summary: Actualizar ruta
+      operationId: adminUpdateRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RutaId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RutaRequest'
+      responses:
+        '200':
+          description: Ruta actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+    delete:
+      tags:
+        - Rutas
+      summary: Eliminar ruta
+      description: Elimina fisicamente la ruta de la base de datos.
+      operationId: adminDeleteRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RutaId'
+      responses:
+        '200':
+          description: Ruta eliminada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/rutas/{id}/toggle-status:
+    patch:
+      tags:
+        - Rutas
+      summary: Alternar estado de ruta
+      description: Cambia automaticamente entre estado activo e inactivo/desactivado sin recibir body.
+      operationId: adminToggleRutaStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RutaId'
+      responses:
+        '200':
+          description: Estado de la ruta actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/menu-rutas:
+    get:
+      tags:
+        - Menu de rutas
+      summary: Listar rutas de menu
+      description: Lista rutas configuradas para el menu principal, con filtros administrativos.
+      operationId: adminListMenuRutas
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: role_id
+          schema:
+            type: integer
+        - in: query
+          name: estado_id
+          schema:
+            type: integer
+        - in: query
+          name: dependencia
+          schema:
+            type:
+              - integer
+              - 'null'
+        - in: query
+          name: visible
+          schema:
+            type: boolean
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista paginada de rutas de menu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuRutaPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Menu de rutas
+      summary: Crear ruta de menu
+      operationId: adminCreateMenuRuta
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuRutaStoreRequest'
+      responses:
+        '201':
+          description: Ruta de menu creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuRutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Error de validacion o regla de negocio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/menu-rutas/{menuRuta}:
+    put:
+      tags:
+        - Menu de rutas
+      summary: Actualizar ruta de menu
+      operationId: adminUpdateMenuRuta
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: menuRuta
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuRutaUpdateRequest'
+      responses:
+        '200':
+          description: Ruta de menu actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuRutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion o regla de negocio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /admin/menu-rutas/{menuRuta}/toggle-status:
+    patch:
+      tags:
+        - Menu de rutas
+      summary: Alternar estado de ruta de menu
+      operationId: adminToggleMenuRutaStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: menuRuta
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Estado actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuRutaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/ticket-plantillas:
+    get:
+      tags:
+        - Plantillas de ticket
+      summary: Listar plantillas de ticket
+      description: Devuelve plantillas de ticket paginadas con filtros opcionales. Solo administradores.
+      operationId: adminListTicketPlantillas
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+        - in: query
+          name: estado_id
+          schema:
+            type: integer
+        - in: query
+          name: es_predeterminada
+          schema:
+            type: boolean
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista paginada de plantillas de ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Plantillas de ticket
+      summary: Crear plantilla de ticket
+      description: Sube una imagen base, valida sus dimensiones configuradas y crea la plantilla activa automaticamente.
+      operationId: adminCreateTicketPlantilla
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TicketPlantillaStoreRequest'
+      responses:
+        '201':
+          description: Plantilla de ticket creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/ticket-plantillas/{id}:
+    get:
+      tags:
+        - Plantillas de ticket
+      summary: Ver plantilla de ticket
+      operationId: adminShowTicketPlantilla
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketPlantillaId'
+      responses:
+        '200':
+          description: Plantilla de ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaResourceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Plantillas de ticket
+      summary: Actualizar plantilla de ticket
+      description: Permite actualizar datos, posiciones y reemplazar la imagen base.
+      operationId: adminUpdateTicketPlantilla
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketPlantillaId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TicketPlantillaUpdateRequest'
+      responses:
+        '200':
+          description: Plantilla de ticket actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion o plantilla inactiva al marcar como predeterminada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+    delete:
+      tags:
+        - Plantillas de ticket
+      summary: Eliminar plantilla de ticket
+      description: Elimina fisicamente la plantilla y su imagen si no esta referenciada por otro registro.
+      operationId: adminDeleteTicketPlantilla
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketPlantillaId'
+      responses:
+        '200':
+          description: Plantilla de ticket eliminada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/ticket-plantillas/{id}/toggle-status:
+    patch:
+      tags:
+        - Plantillas de ticket
+      summary: Alternar estado de plantilla de ticket
+      description: Cambia automaticamente entre activo e inactivo/desactivado sin recibir body. Si queda inactiva, deja de ser predeterminada.
+      operationId: adminToggleTicketPlantillaStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketPlantillaId'
+      responses:
+        '200':
+          description: Estado de la plantilla de ticket actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/ticket-plantillas/{id}/set-default:
+    patch:
+      tags:
+        - Plantillas de ticket
+      summary: Marcar plantilla predeterminada
+      description: Marca una plantilla activa como predeterminada y desmarca las demas.
+      operationId: adminSetDefaultTicketPlantilla
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketPlantillaId'
+      responses:
+        '200':
+          description: Plantilla de ticket predeterminada actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPlantillaMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: La plantilla esta inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '500':
+          description: Falta el estado activo en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /admin/users:
+    get:
+      tags:
+        - Administracion de usuarios
+      summary: Listar usuarios
+      description: Devuelve usuarios paginados con rol y estado.
+      operationId: adminListUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 15
+      responses:
+        '200':
+          description: Lista paginada de usuarios.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPaginatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Administracion de usuarios
+      summary: Crear usuario
+      description: Crea un usuario, genera una contrasena temporal y envia sus credenciales por correo.
+      operationId: adminCreateUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserRequest'
+            examples:
+              vendedor:
+                value:
+                  name: Maria Perez
+                  email: maria@example.test
+                  role_id: 3
+      responses:
+        '201':
+          description: Usuario creado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /admin/users/{id}:
+    get:
+      tags:
+        - Administracion de usuarios
+      summary: Ver usuario
+      operationId: adminShowUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Detalle de usuario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResourceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Administracion de usuarios
+      summary: Actualizar usuario
+      operationId: adminUpdateUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserRequest'
+      responses:
+        '200':
+          description: Usuario actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Error de validacion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /admin/users/{id}/reset-password:
+    patch:
+      tags:
+        - Administracion de usuarios
+      summary: Restablecer contrasena temporal
+      description: Genera una nueva contrasena temporal, marca cambio obligatorio y envia el correo al usuario.
+      operationId: adminResetUserPassword
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Contrasena restablecida correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/toggle-status:
+    patch:
+      tags:
+        - Administracion de usuarios
+      summary: Alternar estado de usuario
+      description: Cambia automaticamente entre estado activo e inactivo/desactivado sin eliminar al usuario.
+      operationId: adminToggleUserStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Estado alternado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserMutationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Falta el estado activo o inactivo/desactivado en catalogos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
 components:
+  parameters:
+    UserId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
+    OperadorId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
+    OperadorRutaId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
+    BusId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
+    HorarioId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
+    VentaHorarioId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
+    RutaId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
+    TicketPlantillaId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+      example: 1
   securitySchemes:
     bearerAuth:
       type: http
@@ -138,6 +2347,27 @@ components:
             $ref: '#/components/schemas/MessageResponse'
           example:
             message: Unauthenticated.
+    Forbidden:
+      description: El usuario no tiene permisos o debe cambiar su contrasena inicial.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageResponse'
+          examples:
+            noAdmin:
+              value:
+                message: No tiene permisos para gestionar usuarios.
+            mustChangePassword:
+              value:
+                message: Debe cambiar la contrasena inicial antes de continuar.
+    NotFound:
+      description: Recurso no encontrado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageResponse'
+          example:
+            message: Not Found
   schemas:
     LoginRequest:
       type: object
@@ -179,6 +2409,7 @@ components:
       required:
         - token_type
         - access_token
+        - requires_operator_registration
         - user
       properties:
         token_type:
@@ -187,6 +2418,10 @@ components:
         access_token:
           type: string
           example: 1|token-generado-por-sanctum
+        requires_operator_registration:
+          type: boolean
+          description: true solo cuando el usuario tiene rol empresario y aun no tiene operador registrado.
+          example: false
         user:
           $ref: '#/components/schemas/User'
     ChangeInitialPasswordResponse:
@@ -207,6 +2442,1699 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/User'
+    UserPaginatedResponse:
+      type: object
+      required:
+        - users
+        - pagination
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    AdminUserRequest:
+      type: object
+      required:
+        - name
+        - email
+        - role_id
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: Maria Perez
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: maria@example.test
+        role_id:
+          type: integer
+          example: 3
+    AdminUserMutationResponse:
+      type: object
+      required:
+        - message
+        - user
+      properties:
+        message:
+          type: string
+          example: Usuario actualizado correctamente.
+        user:
+          $ref: '#/components/schemas/User'
+    OperadorRequest:
+      type: object
+      required:
+        - tipo_operador_id
+        - nombre_comercial
+      properties:
+        tipo_operador_id:
+          type: integer
+          example: 1
+        nombre_comercial:
+          type: string
+          maxLength: 255
+          example: Transportes Central
+        razon_social:
+          type:
+            - string
+            - 'null'
+          maxLength: 255
+          description: Requerido cuando el tipo de operador es empresa.
+          example: Transportes Central S.A.
+        representante_legal:
+          type:
+            - string
+            - 'null'
+          maxLength: 255
+          description: Requerido cuando el tipo de operador es empresa.
+          example: Maria Lopez
+        telefono:
+          type:
+            - string
+            - 'null'
+          maxLength: 50
+          description: Requerido cuando el tipo de operador es persona.
+          example: 2222-3333
+        telefono_opcional:
+          type:
+            - string
+            - 'null'
+          maxLength: 50
+          example: 7777-8888
+        correo_administrativo:
+          type:
+            - string
+            - 'null'
+          format: email
+          maxLength: 255
+          description: Opcional para operadores de tipo empresa.
+          example: contacto@central.test
+        direccion:
+          type:
+            - string
+            - 'null'
+          maxLength: 255
+          example: Terminal central
+        nit:
+          type:
+            - string
+            - 'null'
+          pattern: '^\\d{4}-\\d{6}-\\d{3}-\\d$'
+          description: Requerido y unico cuando el tipo de operador es empresa.
+          example: 0614-290695-101-3
+        dui:
+          type:
+            - string
+            - 'null'
+          pattern: '^\\d{8}-\\d$'
+          description: Requerido y unico cuando el tipo de operador es persona.
+          example: 12345678-9
+    ToggleOperadorStatusRequest:
+      type: object
+      properties:
+        motivo_desactivacion:
+          type:
+            - string
+            - 'null'
+          maxLength: 1000
+          description: Obligatorio al desactivar un operador activo; se ignora al reactivar.
+          example: Documentacion vencida
+    OperadorMutationResponse:
+      type: object
+      required:
+        - message
+        - operador
+      properties:
+        message:
+          type: string
+          example: Operador actualizado correctamente.
+        operador:
+          $ref: '#/components/schemas/Operador'
+    OperadorResourceResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Operador'
+    OperadorPaginatedResponse:
+      type: object
+      required:
+        - operadores
+        - pagination
+      properties:
+        operadores:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operador'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    Operador:
+      type: object
+      required:
+        - id
+        - tipo_operador
+        - nombre_comercial
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        user:
+          type:
+            - object
+            - 'null'
+          properties:
+            id:
+              type: integer
+              example: 2
+            name:
+              type: string
+              example: Empresario Terminal302
+            email:
+              type: string
+              format: email
+              example: empresario@example.test
+        tipo_operador:
+          $ref: '#/components/schemas/CatalogItem'
+        nombre_comercial:
+          type: string
+          example: Transportes Central
+        razon_social:
+          type:
+            - string
+            - 'null'
+          example: Transportes Central S.A.
+        representante_legal:
+          type:
+            - string
+            - 'null'
+          example: Maria Lopez
+        telefono:
+          type:
+            - string
+            - 'null'
+          example: 2222-3333
+        telefono_opcional:
+          type:
+            - string
+            - 'null'
+          example: 7777-8888
+        correo_administrativo:
+          type:
+            - string
+            - 'null'
+          format: email
+          example: contacto@central.test
+        direccion:
+          type:
+            - string
+            - 'null'
+          example: Terminal central
+        nit:
+          type:
+            - string
+            - 'null'
+          example: 0614-290695-101-3
+        dui:
+          type:
+            - string
+            - 'null'
+          example: 12345678-9
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        motivo_desactivacion:
+          type:
+            - string
+            - 'null'
+          example: Documentacion vencida
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+    OperadorRutaRequest:
+      type: object
+      required:
+        - ruta_id
+      properties:
+        ruta_id:
+          type: integer
+          example: 1
+    OperadorRutaMutationResponse:
+      type: object
+      required:
+        - message
+        - operador_ruta
+      properties:
+        message:
+          type: string
+          example: Ruta asignada al operador correctamente.
+        operador_ruta:
+          $ref: '#/components/schemas/OperadorRuta'
+    OperadorRutaPaginatedResponse:
+      type: object
+      required:
+        - operador_rutas
+        - pagination
+      properties:
+        operador_rutas:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperadorRuta'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    OperadorRuta:
+      type: object
+      required:
+        - id
+        - ruta
+        - denominacion
+        - tarifa
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        ruta:
+          type: string
+          example: 301-A
+        denominacion:
+          type: string
+          example: Usulutan - San Salvador
+        tarifa:
+          type: string
+          example: '1.50'
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+    BusRequest:
+      type: object
+      required:
+        - ruta_id
+        - placa
+        - marca
+        - capacidad
+        - tipo_bus_id
+      properties:
+        ruta_id:
+          type: integer
+          example: 1
+        placa:
+          type: string
+          maxLength: 50
+          example: AB-123
+        marca:
+          type: string
+          maxLength: 100
+          example: Mercedes
+        nombre_unidad:
+          type:
+            - string
+            - 'null'
+          maxLength: 100
+          example: Unidad Centro
+        capacidad:
+          type: integer
+          minimum: 1
+          example: 45
+        tipo_bus_id:
+          type: integer
+          example: 1
+    BusMutationResponse:
+      type: object
+      required:
+        - message
+        - bus
+      properties:
+        message:
+          type: string
+          example: Bus actualizado correctamente.
+        bus:
+          $ref: '#/components/schemas/Bus'
+    BusPaginatedResponse:
+      type: object
+      required:
+        - buses
+        - pagination
+      properties:
+        buses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bus'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    Bus:
+      type: object
+      required:
+        - id
+        - ruta
+        - placa
+        - marca
+        - capacidad
+        - tipo_bus
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        ruta:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            ruta:
+              type: string
+              example: 302
+            denominacion:
+              type: string
+              example: Usulutan - San Salvador
+            tarifa:
+              type: string
+              example: '1.50'
+        placa:
+          type: string
+          example: AB-123
+        marca:
+          type: string
+          example: Mercedes
+        nombre_unidad:
+          type:
+            - string
+            - 'null'
+          example: Unidad Centro
+        capacidad:
+          type: integer
+          example: 45
+        tipo_bus:
+          $ref: '#/components/schemas/CatalogItem'
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+    HorarioRequest:
+      type: object
+      required:
+        - ruta_id
+        - operador_id
+        - bus_id
+        - dia_id
+        - hora_salida
+        - sobreventa_permitida
+      properties:
+        ruta_id:
+          type: integer
+          example: 1
+        operador_id:
+          type: integer
+          example: 1
+        bus_id:
+          type: integer
+          example: 1
+        dia_id:
+          type: integer
+          example: 1
+        hora_salida:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: '08:30'
+        sobreventa_permitida:
+          type: boolean
+          example: false
+    HorarioMutationResponse:
+      type: object
+      required:
+        - message
+        - horario
+      properties:
+        message:
+          type: string
+          example: Horario actualizado correctamente.
+        horario:
+          $ref: '#/components/schemas/Horario'
+    HorariosListResponse:
+      type: object
+      required:
+        - horarios
+      properties:
+        horarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/Horario'
+    HorarioDiasResponse:
+      type: object
+      required:
+        - ruta
+        - dias
+      properties:
+        ruta:
+          $ref: '#/components/schemas/Ruta'
+        dias:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dia'
+    RutasListResponse:
+      type: object
+      required:
+        - rutas
+      properties:
+        rutas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ruta'
+    OperadoresListResponse:
+      type: object
+      required:
+        - operadores
+      properties:
+        operadores:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operador'
+    BusesListResponse:
+      type: object
+      required:
+        - buses
+      properties:
+        buses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bus'
+    Horario:
+      type: object
+      required:
+        - id
+        - ruta
+        - operador
+        - bus
+        - dia
+        - hora_salida
+        - sobreventa_permitida
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        ruta:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            ruta:
+              type: string
+              example: 302
+            denominacion:
+              type: string
+              example: Usulutan - San Salvador
+        operador:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            nombre_comercial:
+              type: string
+              example: Transportes Central
+        bus:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            placa:
+              type: string
+              example: AB-123
+            marca:
+              type: string
+              example: Mercedes
+            nombre_unidad:
+              type:
+                - string
+                - 'null'
+              example: Unidad Centro
+            capacidad:
+              type: integer
+              example: 45
+        dia:
+          $ref: '#/components/schemas/Dia'
+        hora_salida:
+          type: string
+          example: '08:30'
+        sobreventa_permitida:
+          type: boolean
+          example: false
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+    ValidarTicketRequest:
+      type: object
+      required:
+        - codigo_ticket
+      properties:
+        codigo_ticket:
+          type: string
+          maxLength: 255
+          example: TKT-20260630-ABCD123456
+        observacion:
+          type:
+            - string
+            - 'null'
+          maxLength: 1000
+          example: Abordaje confirmado
+    ValidacionTicketResponse:
+      type: object
+      required:
+        - message
+        - ticket
+        - validacion
+      properties:
+        message:
+          type: string
+          example: Ticket validado correctamente.
+        ticket:
+          $ref: '#/components/schemas/Ticket'
+        validacion:
+          $ref: '#/components/schemas/Validacion'
+    ValidacionPaginatedResponse:
+      type: object
+      required:
+        - validaciones
+        - pagination
+      properties:
+        validaciones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Validacion'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    Validacion:
+      type: object
+      required:
+        - id
+        - fecha_validacion
+        - resultado
+      properties:
+        id:
+          type: integer
+          example: 1
+        ticket:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 10
+                codigo_ticket:
+                  type: string
+                  example: TKT-20260630-ABCD123456
+                estado:
+                  $ref: '#/components/schemas/CatalogItem'
+            - type: 'null'
+        validador:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 5
+                name:
+                  type: string
+                  example: Validador Terminal
+                email:
+                  type: string
+                  example: validador@example.test
+            - type: 'null'
+        fecha_validacion:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T15:15:00.000000Z'
+        resultado:
+          type: string
+          example: valido
+        observacion:
+          type:
+            - string
+            - 'null'
+          example: Abordaje confirmado
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T15:15:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T15:15:00.000000Z'
+    TicketStoreRequest:
+      type: object
+      required:
+        - venta_horario_id
+        - cantidad
+        - tipo_envio_id
+      properties:
+        venta_horario_id:
+          type: integer
+          example: 12
+        cantidad:
+          type: integer
+          minimum: 1
+          example: 2
+        tipo_envio_id:
+          type: integer
+          example: 1
+        correo_destino:
+          type:
+            - string
+            - 'null'
+          format: email
+          description: Obligatorio cuando el tipo_envio asociado es digital.
+          example: cliente@email.com
+        telefono_destino:
+          type:
+            - string
+            - 'null'
+          example: '77777777'
+    TicketSaleResponse:
+      type: object
+      required:
+        - message
+        - tipo_envio
+        - venta_horario
+        - tickets
+        - resumen
+      properties:
+        message:
+          type: string
+          example: Tickets generados correctamente.
+        tipo_envio:
+          $ref: '#/components/schemas/CatalogItem'
+        procesamiento:
+          type:
+            - string
+            - 'null'
+          example: pendiente
+        venta_horario:
+          $ref: '#/components/schemas/VentaHorario'
+        tickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
+        event_paths:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            TKT-20260630-ABCD123456: ticket-events/pending/TKT-20260630-ABCD123456.json
+        impresion:
+          oneOf:
+            - type: object
+              properties:
+                tickets:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TicketPrintableData'
+            - type: 'null'
+        resumen:
+          type: object
+          properties:
+            cantidad_solicitada:
+              type: integer
+              example: 2
+            cantidad_generada:
+              type: integer
+              example: 2
+            tickets_normales:
+              type: integer
+              example: 2
+            tickets_sobreventa:
+              type: integer
+              example: 0
+            total_tickets_vendidos:
+              type: integer
+              example: 12
+            total_tickets_sobreventa:
+              type: integer
+              example: 0
+            venta_cerrada:
+              type: boolean
+              example: false
+    TicketPaginatedResponse:
+      type: object
+      required:
+        - tickets
+        - pagination
+      properties:
+        tickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    TicketRetryProcessingResponse:
+      type: object
+      required:
+        - message
+        - ticket
+      properties:
+        message:
+          type: string
+          example: Procesamiento del ticket reintentado correctamente.
+        processing_event_path:
+          type:
+            - string
+            - 'null'
+          example: ticket-events/pending/TKT-20260630-ABCD123456.json
+        ticket:
+          $ref: '#/components/schemas/Ticket'
+    TicketPrintResponse:
+      type: object
+      required:
+        - ticket
+        - printable_data
+      properties:
+        ticket:
+          $ref: '#/components/schemas/Ticket'
+        image_url:
+          type:
+            - string
+            - 'null'
+          example: null
+        print_url:
+          type:
+            - string
+            - 'null'
+          example: null
+        printable_data:
+          $ref: '#/components/schemas/TicketPrintableData'
+    TicketPrintableData:
+      type: object
+      properties:
+        codigo_ticket:
+          type: string
+          example: TKT-20260630-ABCD123456
+        ruta:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 1
+            ruta:
+              type:
+                - string
+                - 'null'
+              example: '302'
+            denominacion:
+              type:
+                - string
+                - 'null'
+              example: Usulutan - San Salvador
+            tarifa:
+              type:
+                - number
+                - 'null'
+              format: float
+              example: 1.5
+        operador:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 1
+            nombre_comercial:
+              type:
+                - string
+                - 'null'
+              example: Operador Demo
+        fecha_operacion:
+          type:
+            - string
+            - 'null'
+          format: date
+          example: '2026-06-30'
+        hora_salida:
+          type:
+            - string
+            - 'null'
+          example: '08:00'
+        asiento:
+          type:
+            - integer
+            - 'null'
+          example: null
+        es_sobreventa:
+          type: boolean
+          example: false
+        qr_path:
+          type:
+            - string
+            - 'null'
+          example: null
+        ticket_image_path:
+          type:
+            - string
+            - 'null'
+          example: null
+        image_url:
+          type:
+            - string
+            - 'null'
+          example: null
+        print_url:
+          type:
+            - string
+            - 'null'
+          example: null
+    Ticket:
+      type: object
+      required:
+        - id
+        - codigo_ticket
+        - venta_horario_id
+        - es_sobreventa
+        - tipo_envio_id
+        - tipo_envio
+        - estado
+        - ticket_plantilla_id
+      properties:
+        id:
+          type: integer
+          example: 1
+        codigo_ticket:
+          type: string
+          example: TKT-20260630-ABCD123456
+        venta_horario_id:
+          type: integer
+          example: 12
+        vendedor:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 4
+                name:
+                  type: string
+                  example: Vendedor Terminal
+                email:
+                  type: string
+                  example: vendedor@example.test
+            - type: 'null'
+        correo_destino:
+          type:
+            - string
+            - 'null'
+          example: cliente@email.com
+        telefono_destino:
+          type:
+            - string
+            - 'null'
+          example: '77777777'
+        numero_asiento:
+          type:
+            - integer
+            - 'null'
+          example: null
+        es_sobreventa:
+          type: boolean
+          example: false
+        tipo_envio_id:
+          type: integer
+          example: 1
+        tipo_envio:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                nombre:
+                  type: string
+                  example: impreso
+                descripcion:
+                  type:
+                    - string
+                    - 'null'
+                  example: Entrega impresa del ticket.
+            - type: 'null'
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        qr_path:
+          type:
+            - string
+            - 'null'
+          example: null
+        ticket_image_path:
+          type:
+            - string
+            - 'null'
+          example: null
+        image_url:
+          type:
+            - string
+            - 'null'
+          example: null
+        print_url:
+          type:
+            - string
+            - 'null'
+          example: null
+        ticket_plantilla_id:
+          type:
+            - integer
+            - 'null'
+          example: 1
+        procesamiento_estado_id:
+          type:
+            - integer
+            - 'null'
+          example: 1
+        procesamiento_estado:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                nombre:
+                  type: string
+                  example: pending
+                descripcion:
+                  type:
+                    - string
+                    - 'null'
+                  example: Procesamiento digital pendiente.
+            - type: 'null'
+        processing_error:
+          type:
+            - string
+            - 'null'
+          example: null
+        processed_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: null
+        processing_event_path:
+          type:
+            - string
+            - 'null'
+          example: ticket-events/pending/TKT-20260630-ABCD123456.json
+        ticket_plantilla:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                nombre:
+                  type: string
+                  example: Ticket general 1000x500
+                image_path:
+                  type: string
+                  example: ticket-plantillas/default.png
+            - type: 'null'
+        venta_horario:
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                  example: 12
+                fecha_operacion:
+                  type: string
+                  format: date
+                  example: '2026-06-30'
+                venta_cerrada:
+                  type: boolean
+                  example: false
+                total_tickets_vendidos:
+                  type: integer
+                  example: 10
+                total_tickets_sobreventa:
+                  type: integer
+                  example: 0
+            - type: 'null'
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T19:00:00.000000Z'
+    CerrarVentaHorarioRequest:
+      type: object
+      properties:
+        motivo_cierre:
+          type:
+            - string
+            - 'null'
+          maxLength: 1000
+          example: Unidad completa
+    VentaHorarioMutationResponse:
+      type: object
+      required:
+        - message
+        - venta_horario
+      properties:
+        message:
+          type: string
+          example: Venta de horario cerrada correctamente.
+        venta_horario:
+          $ref: '#/components/schemas/VentaHorario'
+    HorariosDisponiblesVentaResponse:
+      type: object
+      required:
+        - fecha_operacion
+        - ruta
+        - en_meta
+        - proximo_a_salir
+      properties:
+        fecha_operacion:
+          type: string
+          format: date
+          example: '2026-06-29'
+        ruta:
+          $ref: '#/components/schemas/Ruta'
+        en_meta:
+          $ref: '#/components/schemas/HorarioDisponibleVenta'
+        proximo_a_salir:
+          oneOf:
+            - $ref: '#/components/schemas/HorarioDisponibleVenta'
+            - type: 'null'
+    HorarioDisponibleVenta:
+      type: object
+      required:
+        - horario_id
+        - venta_horario_id
+        - hora_salida
+        - capacidad
+        - total_tickets_vendidos
+        - total_tickets_sobreventa
+        - sobreventa_permitida
+        - venta_cerrada
+        - puede_vender
+      properties:
+        horario_id:
+          type: integer
+          example: 1
+        venta_horario_id:
+          type: integer
+          example: 10
+        hora_salida:
+          type: string
+          example: '10:30'
+        ruta:
+          type: object
+        operador:
+          type: object
+        bus:
+          type: object
+        capacidad:
+          type: integer
+          example: 45
+        total_tickets_vendidos:
+          type: integer
+          example: 0
+        total_tickets_sobreventa:
+          type: integer
+          example: 0
+        sobreventa_permitida:
+          type: boolean
+          example: false
+        venta_cerrada:
+          type: boolean
+          example: false
+        puede_vender:
+          type: boolean
+          example: true
+    VentaHorario:
+      type: object
+      required:
+        - id
+        - horario_id
+        - fecha_operacion
+        - venta_cerrada
+        - total_tickets_vendidos
+        - total_tickets_sobreventa
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        horario_id:
+          type: integer
+          example: 1
+        fecha_operacion:
+          type: string
+          format: date
+          example: '2026-06-29'
+        venta_cerrada:
+          type: boolean
+          example: true
+        cerrada_por:
+          type:
+            - object
+            - 'null'
+        fecha_cierre:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        motivo_cierre:
+          type:
+            - string
+            - 'null'
+          example: Unidad completa
+        total_tickets_vendidos:
+          type: integer
+          example: 0
+        total_tickets_sobreventa:
+          type: integer
+          example: 0
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        horario:
+          type: object
+    Dia:
+      type: object
+      required:
+        - id
+        - nombre
+        - orden
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: Lunes
+        orden:
+          type: integer
+          example: 1
+    RutaRequest:
+      type: object
+      required:
+        - ruta
+        - denominacion
+        - tarifa
+      properties:
+        ruta:
+          type: string
+          maxLength: 50
+          example: 301-A
+        denominacion:
+          type: string
+          maxLength: 255
+          example: Usulutan - San Salvador
+        tarifa:
+          type: number
+          format: float
+          minimum: 0
+          example: 1.50
+    RutaMutationResponse:
+      type: object
+      required:
+        - message
+        - ruta
+      properties:
+        message:
+          type: string
+          example: Ruta actualizada correctamente.
+        ruta:
+          $ref: '#/components/schemas/Ruta'
+    RutaPaginatedResponse:
+      type: object
+      required:
+        - rutas
+        - pagination
+      properties:
+        rutas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ruta'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    Ruta:
+      type: object
+      required:
+        - id
+        - ruta
+        - denominacion
+        - tarifa
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        ruta:
+          type: string
+          example: 301-A
+        denominacion:
+          type: string
+          example: Usulutan - San Salvador
+        tarifa:
+          type: string
+          example: '1.50'
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-25T19:00:00.000000Z'
+    TicketPlantillaStoreRequest:
+      type: object
+      required:
+        - nombre
+        - image
+      properties:
+        nombre:
+          type: string
+          maxLength: 255
+          example: Ticket general 1000x500
+        image:
+          type: string
+          format: binary
+          description: Imagen base con dimensiones exactas configuradas por TICKET_TEMPLATE_WIDTH y TICKET_TEMPLATE_HEIGHT.
+        qr_location:
+          type:
+            - string
+            - 'null'
+          description: JSON valido con x, y, width y height.
+          example: '{"x":650,"y":40,"width":120,"height":120}'
+        precio_location:
+          type:
+            - string
+            - 'null'
+          description: JSON valido con coordenadas y estilo de texto.
+          example: '{"x":80,"y":150,"font_size":18,"color":"#000000","align":"left"}'
+        fecha_hora_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":180,"font_size":16,"color":"#000000","align":"left"}'
+        asiento_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":210,"font_size":16,"color":"#000000","align":"left"}'
+        codigo_ticket_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":90,"font_size":18,"color":"#000000","align":"left"}'
+        ruta_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":120,"font_size":18,"color":"#000000","align":"left"}'
+        operador_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":240,"font_size":16,"color":"#000000","align":"left"}'
+        es_predeterminada:
+          type: boolean
+          example: false
+    TicketPlantillaUpdateRequest:
+      type: object
+      required:
+        - nombre
+      properties:
+        nombre:
+          type: string
+          maxLength: 255
+          example: Ticket general 1000x500
+        image:
+          type:
+            - string
+            - 'null'
+          format: binary
+          description: Nueva imagen base opcional con dimensiones exactas configuradas.
+        qr_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":650,"y":40,"width":120,"height":120}'
+        precio_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":150,"font_size":18,"color":"#000000","align":"left"}'
+        fecha_hora_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":180,"font_size":16,"color":"#000000","align":"left"}'
+        asiento_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":210,"font_size":16,"color":"#000000","align":"left"}'
+        codigo_ticket_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":90,"font_size":18,"color":"#000000","align":"left"}'
+        ruta_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":120,"font_size":18,"color":"#000000","align":"left"}'
+        operador_location:
+          type:
+            - string
+            - 'null'
+          example: '{"x":80,"y":240,"font_size":16,"color":"#000000","align":"left"}'
+        es_predeterminada:
+          type: boolean
+          example: false
+    TicketPlantillaResourceResponse:
+      type: object
+      required:
+        - ticket_plantilla
+      properties:
+        ticket_plantilla:
+          $ref: '#/components/schemas/TicketPlantilla'
+    TicketPlantillaMutationResponse:
+      type: object
+      required:
+        - message
+        - ticket_plantilla
+      properties:
+        message:
+          type: string
+          example: Plantilla de ticket actualizada correctamente.
+        ticket_plantilla:
+          $ref: '#/components/schemas/TicketPlantilla'
+    TicketPlantillaPaginatedResponse:
+      type: object
+      required:
+        - ticket_plantillas
+        - pagination
+      properties:
+        ticket_plantillas:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketPlantilla'
+        pagination:
+          type: object
+          required:
+            - page
+            - per_page
+            - total
+            - last_page
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 25
+            last_page:
+              type: integer
+              example: 2
+    TicketPlantilla:
+      type: object
+      required:
+        - id
+        - nombre
+        - image_path
+        - estado
+        - es_predeterminada
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: Ticket general 1000x500
+        image_path:
+          type: string
+          example: ticket-plantillas/ticket-general.png
+        qr_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaLocation'
+            - type: 'null'
+        precio_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        fecha_hora_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        asiento_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        codigo_ticket_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        ruta_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        operador_location:
+          oneOf:
+            - $ref: '#/components/schemas/TicketPlantillaTextLocation'
+            - type: 'null'
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        es_predeterminada:
+          type: boolean
+          example: true
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-30T19:00:00.000000Z'
+    TicketPlantillaLocation:
+      type: object
+      additionalProperties: true
+      properties:
+        x:
+          type: integer
+          example: 650
+        y:
+          type: integer
+          example: 40
+        width:
+          type: integer
+          example: 120
+        height:
+          type: integer
+          example: 120
+    TicketPlantillaTextLocation:
+      type: object
+      additionalProperties: true
+      properties:
+        x:
+          type: integer
+          example: 80
+        y:
+          type: integer
+          example: 150
+        font_size:
+          type: integer
+          example: 18
+        color:
+          type: string
+          example: '#000000'
+        align:
+          type: string
+          example: left
     User:
       type: object
       required:
@@ -240,6 +4168,12 @@ components:
             - 'null'
           format: date-time
           example: '2026-06-23T19:00:00.000000Z'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-06-23T19:00:00.000000Z'
     CatalogItem:
       type: object
       properties:
@@ -253,6 +4187,359 @@ components:
             - string
             - 'null'
           example: administrador
+    PublicRutaPaginatedResponse:
+      type: object
+      required:
+        - rutas
+        - pagination
+      properties:
+        rutas:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicRuta'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 4
+            last_page:
+              type: integer
+              example: 1
+    PublicHorarioRutaResponse:
+      type: object
+      required:
+        - ruta
+        - horarios
+      properties:
+        ruta:
+          $ref: '#/components/schemas/PublicRuta'
+        horarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicHorario'
+    PublicTicketResponse:
+      type: object
+      required:
+        - ticket
+      properties:
+        ticket:
+          $ref: '#/components/schemas/PublicTicket'
+    PublicRuta:
+      type: object
+      required:
+        - id
+        - ruta
+        - denominacion
+        - tarifa
+      properties:
+        id:
+          type: integer
+          example: 1
+        ruta:
+          type: string
+          example: '302'
+        denominacion:
+          type: string
+          example: Usulutan - San Salvador
+        tarifa:
+          type:
+            - string
+            - number
+          example: '1.50'
+    PublicHorario:
+      type: object
+      properties:
+        horario_id:
+          type: integer
+          example: 10
+        dia:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 1
+            nombre:
+              type:
+                - string
+                - 'null'
+              example: Lunes
+            orden:
+              type:
+                - integer
+                - 'null'
+              example: 1
+        hora_salida:
+          type: string
+          example: '08:00'
+        operador:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 3
+            nombre_comercial:
+              type:
+                - string
+                - 'null'
+              example: Operador Demo
+        bus:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 5
+            placa:
+              type:
+                - string
+                - 'null'
+              example: AB12345
+            marca:
+              type:
+                - string
+                - 'null'
+              example: Mercedes
+            nombre_unidad:
+              type:
+                - string
+                - 'null'
+              example: Unidad AB12345
+        tarifa:
+          type:
+            - string
+            - number
+            - 'null'
+          example: '1.50'
+    PublicTicket:
+      type: object
+      properties:
+        codigo_ticket:
+          type: string
+          example: TKT-20260630-ABCD123456
+        estado:
+          $ref: '#/components/schemas/CatalogItem'
+        ruta:
+          type:
+            - string
+            - 'null'
+          example: '302'
+        denominacion:
+          type:
+            - string
+            - 'null'
+          example: Usulutan - San Salvador
+        operador:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 3
+            nombre_comercial:
+              type:
+                - string
+                - 'null'
+              example: Operador Demo
+        dia:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 1
+            nombre:
+              type:
+                - string
+                - 'null'
+              example: Lunes
+            orden:
+              type:
+                - integer
+                - 'null'
+              example: 1
+        hora_salida:
+          type: string
+          example: '08:00'
+        fecha_operacion:
+          type:
+            - string
+            - 'null'
+          format: date
+          example: '2026-06-30'
+        es_sobreventa:
+          type: boolean
+          example: false
+        tipo_envio:
+          type: object
+          properties:
+            id:
+              type:
+                - integer
+                - 'null'
+              example: 1
+            nombre:
+              type:
+                - string
+                - 'null'
+              example: impreso
+    MenuRutaStoreRequest:
+      type: object
+      required:
+        - titulo
+        - ruta
+        - orden
+        - role_id
+      properties:
+        titulo:
+          type: string
+          example: Administracion
+        ruta:
+          type: string
+          example: /admin/usuarios
+        orden:
+          type: number
+          format: float
+          example: 1.00
+        icono:
+          type:
+            - string
+            - 'null'
+          example: mdi-account
+        visible:
+          type: boolean
+          example: true
+        requiere_autenticacion:
+          type: boolean
+          example: true
+        dependencia:
+          type:
+            - integer
+            - 'null'
+          example: null
+        role_id:
+          type: integer
+          example: 1
+        base_url:
+          type:
+            - string
+            - 'null'
+          format: uri
+          example: http://localhost:8083
+    MenuRutaUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/MenuRutaStoreRequest'
+    MenuRutaMutationResponse:
+      type: object
+      required:
+        - message
+        - menu_ruta
+      properties:
+        message:
+          type: string
+          example: Ruta de menu creada correctamente.
+        menu_ruta:
+          $ref: '#/components/schemas/MenuRuta'
+    MenuRutaPaginatedResponse:
+      type: object
+      required:
+        - menu_rutas
+        - pagination
+      properties:
+        menu_rutas:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuRuta'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 15
+            total:
+              type: integer
+              example: 20
+            last_page:
+              type: integer
+              example: 2
+    MenuRutaTreeResponse:
+      type: object
+      required:
+        - menu_rutas
+      properties:
+        menu_rutas:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuRuta'
+    MenuRuta:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 218
+        titulo:
+          type: string
+          example: Campanas informativas
+        ruta:
+          type: string
+          example: ''
+        orden:
+          type:
+            - string
+            - number
+          example: '6.00'
+        icono:
+          type:
+            - string
+            - 'null'
+          example: mdi-bell-outline
+        visible:
+          type: boolean
+          example: true
+        requiere_autenticacion:
+          type: boolean
+          example: true
+        dependencia:
+          type:
+            - integer
+            - 'null'
+          example: null
+        role_id:
+          type: integer
+          example: 1
+        base_url:
+          type:
+            - string
+            - 'null'
+          example: http://localhost:8083
+        estado:
+          oneOf:
+            - $ref: '#/components/schemas/CatalogItem'
+            - type: 'null'
+        role:
+          oneOf:
+            - $ref: '#/components/schemas/CatalogItem'
+            - type: 'null'
+        dependencias:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuRuta'
     MessageResponse:
       type: object
       required:

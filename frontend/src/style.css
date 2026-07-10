@@ -1,9 +1,7 @@
 :root {
-  color: #172026;
-  background: #f4f7f8;
+  color: #06163a;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
-  line-height: 1.5;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -17,51 +15,239 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: #ffffff;
 }
 
 #app {
   min-height: 100vh;
 }
 
-.shell {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 24px;
+.app-sidebar {
+  border-right: 1px solid #06163a;
+  color: #33405a;
 }
 
-.panel {
-  width: min(100%, 720px);
-  border: 1px solid #d6dee2;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 32px;
-  box-shadow: 0 18px 48px rgba(23, 32, 38, 0.08);
+.sidebar-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 
-.eyebrow {
-  margin: 0 0 10px;
-  color: #0f766e;
-  font-size: 0.82rem;
+.sidebar-brand {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 20px 32px;
+}
+
+.sidebar-brand-logo {
+  flex: 0 0 auto;
+}
+
+.sidebar-menu {
+  flex: 1;
+  padding: 0 28px;
+}
+
+.sidebar-menu-item {
+  color: #33405a;
+  font-size: 1rem;
   font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
+  margin: 12px 0;
+  min-height: 46px;
+  padding-inline: 0;
 }
 
-h1 {
-  margin: 0 0 16px;
-  font-size: 2rem;
-  line-height: 1.2;
+.sidebar-menu-item .v-list-item-title {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: normal;
 }
 
-p {
+.sidebar-menu-group {
+  margin: 18px 0;
+}
+
+.sidebar-menu-section {
+  color: rgb(var(--v-theme-blueLigth));
+  font-size: 1.15rem;
+  line-height: 1.35;
+  margin: 16px 0 22px;
+}
+
+.sidebar-menu-children {
   margin: 0;
-  color: #44525b;
 }
 
-code {
-  border-radius: 4px;
-  background: #eef3f4;
-  color: #172026;
-  padding: 2px 5px;
+.sidebar-menu-item--active,
+.sidebar-menu-item.v-list-item--active {
+  color: #005fd1;
+}
+
+.sidebar-footer {
+  color: #111111;
+  font-size: 1rem;
+  padding: 24px;
+  text-align: center;
+}
+
+.app-navbar {
+  border-bottom: 1px solid #06163a;
+}
+
+.navbar-menu-button {
+  color: #33405a;
+  margin-left: 22px;
+}
+
+.navbar-user {
+  cursor: pointer;
+  margin-right: 12px;
+  max-width: min(46vw, 340px);
+}
+
+.logout-button {
+  font-size: 0.95rem;
+  font-weight: 900;
+  margin-right: 18px;
+  min-height: 40px;
+  text-transform: none;
+}
+
+.logout-icon-button {
+  margin-right: 10px;
+}
+
+.dashboard-main,
+.auth-main,
+.error-main {
+  background: #ffffff;
+}
+
+.dashboard-content {
+  padding: 32px 20px;
+}
+
+.home-view,
+.placeholder-view {
+  padding: 24px 0;
+}
+
+.home-view h1,
+.placeholder-view h1 {
+  color: #06163a;
+  font-size: clamp(2rem, 8vw, 3rem);
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0 0 12px;
+  text-align: center;
+}
+
+.home-view p {
+  color: #33405a;
+  font-size: 1.1rem;
+  margin: 0;
+  text-align: center;
+}
+
+.auth-container,
+.error-container {
+  align-items: center;
+  display: flex;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.auth-card,
+.error-card {
+  width: min(100%, 720px);
+}
+
+.login-container,
+.login-shell {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.login-image-panel {
+  height: 100%;
+}
+
+.login-form-panel {
+  align-items: stretch;
+  height: 100%;
+}
+
+.login-card {
+  border: 2px solid rgb(var(--v-theme-primary));
+  height: calc(100vh - 24px);
+  width: min(100%, 850px);
+}
+
+.login-logo {
+  flex: 0 0 auto;
+}
+
+.login-form {
+  width: min(100%, 686px);
+}
+
+.login-label {
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.login-submit {
+  font-weight: 800;
+  min-width: min(100%, 406px);
+}
+
+@media (min-width: 960px) {
+  .dashboard-content {
+    padding: 56px 36px;
+  }
+
+  .logout-button {
+    font-size: 1rem;
+    margin-right: 18px;
+    min-width: 214px;
+  }
+}
+
+@media (max-width: 599px) {
+  .navbar-menu-button {
+    margin-left: 10px;
+  }
+
+  .navbar-user {
+    margin-right: 8px;
+    max-width: none;
+  }
+
+  .logout-icon-button {
+    height: 50px;
+    width: 50px;
+  }
+}
+
+@media (max-width: 1279px) {
+  .login-container,
+  .login-shell {
+    min-height: 100vh;
+    height: auto;
+    overflow: visible;
+  }
+
+  .login-form-panel {
+    align-items: center;
+    min-height: 100vh;
+    height: auto;
+  }
+
+  .login-card {
+    border-width: 0;
+    height: auto;
+    min-height: auto;
+  }
 }

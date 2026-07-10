@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ChangeInitialPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Estado;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $user = User::query()
-            ->with(['role', 'estado'])
+            ->with(['role', 'estado', 'operador', 'operadorEmpleado.operador'])
             ->where('email', $request->input('email'))
             ->first();
 
@@ -27,7 +28,7 @@ class AuthController extends Controller
             ]);
         }
 
-        if ($user->estado?->nombre !== 'activo') {
+        if ((int) $user->estado_id !== Estado::ACTIVO_ID) {
             return response()->json([
                 'message' => 'El usuario no esta activo.',
             ], 403);
@@ -38,6 +39,7 @@ class AuthController extends Controller
         return response()->json([
             'token_type' => 'Bearer',
             'access_token' => $token,
+            'requires_operator_registration' => $this->requiresOperatorRegistration($user),
             'user' => new UserResource($user),
         ]);
     }
@@ -53,18 +55,17 @@ class AuthController extends Controller
 
     public function user(Request $request): UserResource
     {
-        return new UserResource($request->user()->load(['role', 'estado']));
+        return new UserResource($request->user()->load([
+            'role',
+            'estado',
+            'operador',
+            'operadorEmpleado.operador',
+        ]));
     }
 
     public function changeInitialPassword(ChangeInitialPasswordRequest $request): JsonResponse
     {
         $user = $request->user();
-
-        if (! Hash::check((string) $request->input('current_password'), $user->password)) {
-            throw ValidationException::withMessages([
-                'current_password' => ['La contrasena actual no es valida.'],
-            ]);
-        }
 
         $user->forceFill([
             'password' => Hash::make((string) $request->input('password')),
@@ -73,7 +74,18 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Contrasena actualizada correctamente.',
-            'user' => new UserResource($user->fresh(['role', 'estado'])),
+            'user' => new UserResource($user->fresh([
+                'role',
+                'estado',
+                'operador',
+                'operadorEmpleado.operador',
+            ])),
         ]);
+    }
+
+    private function requiresOperatorRegistration(User $user): bool
+    {
+        return mb_strtolower((string) $user->role?->nombre) === 'empresario'
+            && $user->operador === null;
     }
 }
