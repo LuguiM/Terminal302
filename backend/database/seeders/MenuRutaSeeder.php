@@ -170,7 +170,7 @@ class MenuRutaSeeder extends Seeder
                         ['titulo' => 'Usuarios', 'ruta' => '/admin/gestiones/usuarios', 'orden' => '3.10', 'icono' => 'mdi-account-group'],
                         ['titulo' => 'Operadores', 'ruta' => '/admin/gestiones/operadores', 'orden' => '3.20', 'icono' => 'mdi-account-tie-hat-outline'],
                         ['titulo' => 'Horarios', 'ruta' => '/admin/gestiones/horarios', 'orden' => '3.30', 'icono' => 'mdi-calendar-clock'],
-                    ],
+                    ]
                 ],
                 [
                     'titulo' => 'Configuracion',

@@ -42,7 +42,7 @@ class DatabaseSeeder extends Seeder
         collect(['empresa', 'persona'])
             ->each(fn (string $nombre) => TipoOperador::query()->firstOrCreate(['nombre' => $nombre]));
 
-        collect(['bus', 'microbus', 'coaster'])
+        collect(['bus', 'microbus'])
             ->each(fn (string $nombre) => TipoBus::query()->firstOrCreate(['nombre' => $nombre]));
 
         $this->call(TipoEnvioSeeder::class);
@@ -70,7 +70,7 @@ class DatabaseSeeder extends Seeder
                 'estado_id' => Estado::ACTIVO_ID,
                 'email_verified_at' => now(),
                 'password' => Hash::make($temporaryPassword),
-                'must_change_password' => true,
+                'must_change_password' => false,
             ],
         );
 

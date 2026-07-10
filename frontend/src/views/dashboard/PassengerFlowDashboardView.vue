@@ -82,7 +82,6 @@ const resolvedScope = computed(() => {
 
 const isAdminDashboard = computed(() => resolvedScope.value === 'admin')
 const isOperatorDashboard = computed(() => resolvedScope.value === 'operator')
-const canLoadDashboard = computed(() => isAdminDashboard.value || isOperatorDashboard.value)
 
 const title = computed(() =>
   isAdminDashboard.value
@@ -98,7 +97,7 @@ const subtitle = computed(() =>
 
 const routeOptions = computed(() =>
   routes.value.map((route) => ({
-    title: `${route.ruta} - ${route.denominacion}`,
+    title: `${route.ruta}`,
     value: route.id,
   })),
 )
@@ -120,6 +119,23 @@ const busOptions = computed(() =>
 const summary = computed(() => dashboard.value?.resumen ?? {})
 const dailySeries = computed(() => dashboard.value?.series?.por_dia ?? [])
 const rankings = computed(() => dashboard.value?.rankings ?? {})
+
+const scheduleHeaders = [
+  { title: 'Ruta', key: 'ruta' },
+  { title: 'Salida', key: 'hora_salida' },
+  { title: 'Vendidos', key: 'tickets_vendidos', align: 'end' },
+  { title: 'Validados', key: 'tickets_validados', align: 'end' },
+]
+
+const flowHeaders = computed(() => [
+  {
+    title: isAdminDashboard.value ? 'Operador' : 'Unidad',
+    key: isAdminDashboard.value ? 'nombre_comercial' : 'placa',
+  },
+  { title: 'Vendidos', key: 'tickets_vendidos', align: 'end' },
+  { title: 'Validados', key: 'tickets_validados', align: 'end' },
+  { title: 'Sobreventa', key: 'tickets_sobreventa', align: 'end' },
+])
 
 const kpis = computed(() => [
   {
@@ -293,9 +309,6 @@ function buildParams() {
 }
 
 async function fetchFilterOptions() {
-  if (!canLoadDashboard.value) {
-    return
-  }
 
   filtersLoading.value = true
 
@@ -327,11 +340,6 @@ async function fetchFilterOptions() {
 }
 
 async function fetchDashboard() {
-  if (!canLoadDashboard.value) {
-    dashboard.value = null
-
-    return
-  }
 
   loading.value = true
   error.value = ''
@@ -380,7 +388,6 @@ onMounted(async () => {
     class="text-primary"
     fluid
   >
-    <template v-if="canLoadDashboard">
       <PageTitle :title="title" />
 
       <p class="text-secondary mt-n7 mb-7 text-center">
@@ -394,7 +401,10 @@ onMounted(async () => {
       >
         <v-card-text>
           <v-row align="center">
-            <v-col cols="12" md="2">
+            <v-col
+              cols="12"
+              :md="filterMode === 'rango' ? 3 : 2"
+            >
               <v-select
                 v-model="filterMode"
                 density="comfortable"
@@ -465,7 +475,7 @@ onMounted(async () => {
               />
             </v-col>
 
-            <v-col cols="12" md="3">
+            <v-col cols="12" md="2">
               <v-select
                 v-model="routeId"
                 clearable
@@ -481,7 +491,7 @@ onMounted(async () => {
             <v-col
               v-if="isAdminDashboard"
               cols="12"
-              md="3"
+              :md="filterMode === 'rango' ? 3 : 2"
             >
               <v-select
                 v-model="operatorId"
@@ -498,7 +508,7 @@ onMounted(async () => {
             <v-col
               v-if="isOperatorDashboard"
               cols="12"
-              md="3"
+              :md="filterMode === 'rango' ? 3 : 2"
             >
               <v-select
                 v-model="busId"
@@ -512,26 +522,30 @@ onMounted(async () => {
               />
             </v-col>
 
-            <v-col cols="6" sm="3" md="2">
-              <v-btn
-                block
-                color="primary"
-                :loading="loading"
-                prepend-icon="mdi-filter-check"
-                @click="fetchDashboard"
-              >
-                Aplicar
-              </v-btn>
-            </v-col>
+            <v-col
+              cols="12"
+              sm="6"
+              md="4"
+            >
+              <div class="d-flex ga-4">
+                <v-btn
+                  class="flex-grow-1"
+                  color="primary"
+                  :loading="loading"
+                  prepend-icon="mdi-filter-check"
+                  @click="fetchDashboard"
+                >
+                  Aplicar
+                </v-btn>
 
-            <v-col cols="6" sm="3" md="2">
-              <v-btn
-                block
-                variant="outlined"
-                @click="clearFilters"
-              >
-                Limpiar
-              </v-btn>
+                <v-btn
+                  class="flex-grow-1"
+                  variant="outlined"
+                  @click="clearFilters"
+                >
+                  Limpiar
+                </v-btn>
+              </div>
             </v-col>
           </v-row>
         </v-card-text>
@@ -547,7 +561,7 @@ onMounted(async () => {
         {{ error }}
       </v-alert>
 
-      <v-row class="mb-6">
+      <v-row class="mb-2">
         <v-col
           v-for="kpi in kpis"
           :key="kpi.label"
@@ -561,7 +575,7 @@ onMounted(async () => {
             rounded="lg"
             variant="outlined"
           >
-            <v-card-text class="d-flex align-center ga-4">
+            <v-card-text class="d-flex align-center ga-4 h-100">
               <v-icon
                 color="blueLigth"
                 :icon="kpi.icon"
@@ -637,30 +651,25 @@ onMounted(async () => {
             <v-card-title class="text-primary text-subtitle-1 font-weight-black">
               Horarios con mayor flujo
             </v-card-title>
-            <v-table density="comfortable">
-              <thead>
-                <tr>
-                  <th>Ruta</th>
-                  <th>Salida</th>
-                  <th class="text-right">Vendidos</th>
-                  <th class="text-right">Validados</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="item in rankings.horarios ?? []"
-                  :key="item.horario_id"
-                >
-                  <td>{{ item.ruta }}</td>
-                  <td>{{ formatTime(item.hora_salida) }}</td>
-                  <td class="text-right">{{ formatNumber(item.tickets_vendidos) }}</td>
-                  <td class="text-right">{{ formatNumber(item.tickets_validados) }}</td>
-                </tr>
-                <tr v-if="!(rankings.horarios ?? []).length">
-                  <td colspan="4">Sin datos para mostrar.</td>
-                </tr>
-              </tbody>
-            </v-table>
+            <v-data-table
+              density="comfortable"
+              :headers="scheduleHeaders"
+              hide-default-footer
+              :items="rankings.horarios ?? []"
+              :items-per-page="-1"
+              item-value="horario_id"
+              no-data-text="Sin datos para mostrar."
+            >
+              <template #item.hora_salida="{ value }">
+                {{ formatTime(value) }}
+              </template>
+              <template #item.tickets_vendidos="{ value }">
+                {{ formatNumber(value) }}
+              </template>
+              <template #item.tickets_validados="{ value }">
+                {{ formatNumber(value) }}
+              </template>
+            </v-data-table>
           </v-card>
         </v-col>
 
@@ -672,53 +681,28 @@ onMounted(async () => {
             <v-card-title class="text-primary text-subtitle-1 font-weight-black">
               {{ isAdminDashboard ? 'Operadores con mayor flujo' : 'Unidades con mayor uso' }}
             </v-card-title>
-            <v-table density="comfortable">
-              <thead>
-                <tr>
-                  <th>{{ isAdminDashboard ? 'Operador' : 'Unidad' }}</th>
-                  <th class="text-right">Vendidos</th>
-                  <th class="text-right">Validados</th>
-                  <th class="text-right">Sobreventa</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="item in (isAdminDashboard ? rankings.operadores : rankings.buses) ?? []"
-                  :key="isAdminDashboard ? item.operador_id : item.bus_id"
-                >
-                  <td>
-                    {{ isAdminDashboard ? item.nombre_comercial : item.placa }}
-                  </td>
-                  <td class="text-right">{{ formatNumber(item.tickets_vendidos) }}</td>
-                  <td class="text-right">{{ formatNumber(item.tickets_validados) }}</td>
-                  <td class="text-right">{{ formatNumber(item.tickets_sobreventa) }}</td>
-                </tr>
-                <tr v-if="!((isAdminDashboard ? rankings.operadores : rankings.buses) ?? []).length">
-                  <td colspan="4">Sin datos para mostrar.</td>
-                </tr>
-              </tbody>
-            </v-table>
+            <v-data-table
+              density="comfortable"
+              :headers="flowHeaders"
+              hide-default-footer
+              :items="(isAdminDashboard ? rankings.operadores : rankings.buses) ?? []"
+              :items-per-page="-1"
+              :item-value="isAdminDashboard ? 'operador_id' : 'bus_id'"
+              no-data-text="Sin datos para mostrar."
+            >
+              <template #item.tickets_vendidos="{ value }">
+                {{ formatNumber(value) }}
+              </template>
+              <template #item.tickets_validados="{ value }">
+                {{ formatNumber(value) }}
+              </template>
+              <template #item.tickets_sobreventa="{ value }">
+                {{ formatNumber(value) }}
+              </template>
+            </v-data-table>
           </v-card>
         </v-col>
       </v-row>
-    </template>
-
-    <v-card
-      v-else
-      class="mx-auto my-6 text-center"
-      max-width="760"
-      rounded="lg"
-      variant="outlined"
-    >
-      <v-card-text>
-        <h1 class="text-h3 font-weight-bold mb-3">
-          Bienvenido a Terminal302
-        </h1>
-        <p class="text-secondary ma-0">
-          Tu rol todavía no tiene un dashboard operativo configurado.
-        </p>
-      </v-card-text>
-    </v-card>
   </v-container>
 </template>
 
