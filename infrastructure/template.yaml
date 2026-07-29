@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Funciones serverless de Terminal302
+
+Parameters:
+  InternalApiToken:
+    Type: String
+    NoEcho: true
+    Default: local-only-change-me
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+    Timeout: 5
+    MemorySize: 128
+    Environment:
+      Variables:
+        INTERNAL_API_TOKEN: !Ref InternalApiToken
+
+Resources:
+  PublicTicketValidationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambda/public-ticket-validation/src/
+      Handler: handler.lambda_handler
+      Events:
+        VerifyTicket:
+          Type: HttpApi
+          Properties:
+            Path: /tickets/verify
+            Method: POST
+
+Outputs:
+  PublicTicketValidationFunctionArn:
+    Value: !GetAtt PublicTicketValidationFunction.Arn

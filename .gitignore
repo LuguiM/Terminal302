@@ -24,3 +24,6 @@ public-frontend/.env.*
 .DS_Store
 Thumbs.db
 *.log
+
+infrastructure/env.local.json
+.aws-sam/

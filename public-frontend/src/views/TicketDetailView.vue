@@ -44,10 +44,28 @@
               {{ ticket.codigo_ticket }}
             </h2>
           </div>
-          <v-chip color="success" variant="tonal">
-            {{ ticket.estado?.nombre || 'Consultado' }}
+          <v-chip
+            :color="ticket.verification?.usable ? 'success' : 'error'"
+            variant="tonal"
+          >
+            {{ ticket.verification?.usable ? 'Utilizable' : 'No utilizable' }}
           </v-chip>
         </div>
+
+        <v-alert
+          v-if="ticket.verification"
+          class="mb-6"
+          :type="ticket.verification.usable ? 'success' : 'warning'"
+          variant="tonal"
+        >
+          {{ ticket.verification.message }}
+          <div
+            v-if="isDevelopment"
+            class="text-caption mt-1"
+          >
+            Origen: {{ verificationSource }}
+          </div>
+        </v-alert>
 
         <v-row>
           <v-col
@@ -87,6 +105,13 @@ const router = useRouter()
 const loading = ref(true)
 const ticket = ref(null)
 const errorMessage = ref('')
+const isDevelopment = import.meta.env.DEV
+
+const verificationSource = computed(() => (
+  ticket.value?.verification?.source === 'lambda'
+    ? 'Lambda local'
+    : 'Fallback Laravel'
+))
 
 const ticketDetails = computed(() => {
   if (!ticket.value) {

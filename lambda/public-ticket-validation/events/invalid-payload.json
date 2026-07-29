@@ -1,0 +1,10 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /tickets/verify",
+  "headers": {
+    "content-type": "application/json",
+    "x-internal-token": "local-only-change-me"
+  },
+  "body": "{\"codigo_ticket\":\"TKT-LOCAL-001\"}",
+  "isBase64Encoded": false
+}

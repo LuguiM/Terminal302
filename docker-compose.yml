@@ -30,6 +30,8 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-change_me_locally}
     ports:
       - "${BACKEND_PORT:-8302}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

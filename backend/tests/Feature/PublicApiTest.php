@@ -18,6 +18,7 @@ use App\Models\TipoOperador;
 use App\Models\User;
 use App\Models\VentaHorario;
 use App\Services\PublicTicketLookupService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -25,6 +26,13 @@ use Tests\TestCase;
 class PublicApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
+    }
 
     public function test_public_routes_list_only_active_routes_with_active_schedules_paginated_and_searchable(): void
     {
@@ -110,6 +118,7 @@ class PublicApiTest extends TestCase
 
     public function test_public_ticket_lookup_returns_limited_data_without_auth_or_validation_side_effects(): void
     {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-06-30 09:00:00', 'America/El_Salvador'));
         $context = $this->createHorarioContext('302', 'Usulutan - San Salvador');
         $ventaHorario = $this->createVentaHorario($context['horario']);
         $ticket = $this->createTicket($ventaHorario, 'TKT-PUBLIC-001');
@@ -126,6 +135,9 @@ class PublicApiTest extends TestCase
             ->assertJsonPath('ticket.fecha_operacion', '2026-06-30')
             ->assertJsonPath('ticket.es_sobreventa', false)
             ->assertJsonPath('ticket.tipo_envio.nombre', TipoEnvio::IMPRESO)
+            ->assertJsonPath('ticket.verification.usable', true)
+            ->assertJsonPath('ticket.verification.code', 'usable')
+            ->assertJsonPath('ticket.verification.source', 'fallback')
             ->assertJsonMissingPath('ticket.correo_destino')
             ->assertJsonMissingPath('ticket.telefono_destino')
             ->assertJsonMissingPath('ticket.vendedor')
