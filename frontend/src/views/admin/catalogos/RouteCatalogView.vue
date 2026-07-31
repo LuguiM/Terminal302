@@ -12,9 +12,8 @@ import {
   toggleRouteStatus,
   updateRoute,
 } from '@/services/routeService'
-import RouteCreateModal from '@/views/admin/catalogos/components/RouteCreateModal.vue'
 import RouteDeleteModal from '@/views/admin/catalogos/components/RouteDeleteModal.vue'
-import RouteEditModal from '@/views/admin/catalogos/components/RouteEditModal.vue'
+import RouteFormModal from '@/views/admin/catalogos/components/RouteFormModal.vue'
 import RouteStatusModal from '@/views/admin/catalogos/components/RouteStatusModal.vue'
 
 const routes = ref([])
@@ -28,8 +27,8 @@ const lastPage = ref(1)
 const selectedRoute = ref(null)
 const actionLoading = ref(false)
 
-const showCreateModal = ref(false)
-const showEditModal = ref(false)
+const showFormModal = ref(false)
+const formMode = ref('create')
 const showDeleteModal = ref(false)
 const showStatusModal = ref(false)
 
@@ -106,8 +105,7 @@ const handlePerPageChange = (value) => {
 }
 
 const closeModals = () => {
-  showCreateModal.value = false
-  showEditModal.value = false
+  showFormModal.value = false
   showDeleteModal.value = false
   showStatusModal.value = false
   selectedRoute.value = null
@@ -115,12 +113,14 @@ const closeModals = () => {
 
 const openCreateModal = () => {
   selectedRoute.value = null
-  showCreateModal.value = true
+  formMode.value = 'create'
+  showFormModal.value = true
 }
 
 const openEditModal = (route) => {
   selectedRoute.value = getRow(route)
-  showEditModal.value = true
+  formMode.value = 'edit'
+  showFormModal.value = true
 }
 
 const openToggleStatusModal = (route) => {
@@ -133,29 +133,25 @@ const openDeleteModal = (route) => {
   showDeleteModal.value = true
 }
 
-const handleCreateRoute = async (payload) => {
+const handleSubmitRoute = async (payload) => {
   actionLoading.value = true
 
   try {
-    const { data } = await createRoute(payload)
-    notify.success(data.message || 'Ruta creada correctamente.')
-    closeModals()
-    await fetchRoutes()
-  } finally {
-    actionLoading.value = false
-  }
-}
-
-const handleEditRoute = async (payload) => {
-  actionLoading.value = true
-
-  try {
-    const { data } = await updateRoute(payload.id, {
+    const routeData = {
       ruta: payload.ruta,
       denominacion: payload.denominacion,
       tarifa: payload.tarifa,
-    })
-    notify.success(data.message || 'Ruta actualizada correctamente.')
+    }
+    const { data } = formMode.value === 'edit'
+      ? await updateRoute(payload.id, routeData)
+      : await createRoute(routeData)
+
+    notify.success(
+      data.message
+        || (formMode.value === 'edit'
+          ? 'Ruta actualizada correctamente.'
+          : 'Ruta creada correctamente.'),
+    )
     closeModals()
     await fetchRoutes()
   } finally {
@@ -349,19 +345,13 @@ onMounted(fetchRoutes)
       </template>
     </AppDataTable>
 
-    <RouteCreateModal
-      v-model="showCreateModal"
+    <RouteFormModal
+      v-model="showFormModal"
       :loading="actionLoading"
-      @cancel="closeModals"
-      @submit="handleCreateRoute"
-    />
-
-    <RouteEditModal
-      v-model="showEditModal"
-      :loading="actionLoading"
+      :mode="formMode"
       :route="selectedRoute"
       @cancel="closeModals"
-      @submit="handleEditRoute"
+      @submit="handleSubmitRoute"
     />
 
     <RouteStatusModal

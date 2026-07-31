@@ -91,6 +91,84 @@ class AdminRutaApiTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_create_routes_with_supported_salvadoran_codes(): void
+    {
+        $admin = $this->createUser('administrador', 'admin@example.test');
+        $this->estado(Estado::ACTIVO_ID, 'Activo');
+
+        Sanctum::actingAs($admin);
+
+        foreach (['89', '89A', '89-B', '302', '302B', '302-B', '302-1', '2', '2A', '2-A'] as $code) {
+            $this->postJson('/api/admin/rutas', [
+                'ruta' => $code,
+                'denominacion' => 'san salvador - usulután',
+                'tarifa' => 1.50,
+            ])
+                ->assertCreated()
+                ->assertJsonPath('ruta.ruta', $code);
+        }
+    }
+
+    public function test_route_data_is_normalized_before_creation_and_update(): void
+    {
+        $admin = $this->createUser('administrador', 'admin@example.test');
+        $this->estado(Estado::ACTIVO_ID, 'Activo');
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->postJson('/api/admin/rutas', [
+            'ruta' => ' 302-b ',
+            'denominacion' => '  usulután - san salvador ',
+            'tarifa' => 1.50,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('ruta.ruta', '302-B')
+            ->assertJsonPath('ruta.denominacion', 'Usulután - San Salvador');
+
+        $rutaId = $response->json('ruta.id');
+
+        $this->putJson("/api/admin/rutas/{$rutaId}", [
+            'ruta' => ' 89a ',
+            'denominacion' => '  san miguel - la unión ',
+            'tarifa' => 1.75,
+        ])
+            ->assertOk()
+            ->assertJsonPath('ruta.ruta', '89A')
+            ->assertJsonPath('ruta.denominacion', 'San Miguel - La Unión');
+
+        $this->assertDatabaseHas('rutas', [
+            'id' => $rutaId,
+            'ruta' => '89A',
+            'denominacion' => 'San Miguel - La Unión',
+        ]);
+    }
+
+    public function test_admin_cannot_create_or_update_routes_with_invalid_codes(): void
+    {
+        $admin = $this->createUser('administrador', 'admin@example.test');
+        $ruta = $this->createRuta('302', 'Usulutan - San Salvador');
+
+        Sanctum::actingAs($admin);
+
+        foreach (['ABC', 'R-001', '302--B', '302 B', '302@', '302-AB'] as $invalidCode) {
+            $this->postJson('/api/admin/rutas', [
+                'ruta' => $invalidCode,
+                'denominacion' => 'Ruta invalida',
+                'tarifa' => 1.50,
+            ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['ruta']);
+
+            $this->putJson("/api/admin/rutas/{$ruta->id}", [
+                'ruta' => $invalidCode,
+                'denominacion' => 'Ruta invalida',
+                'tarifa' => 1.50,
+            ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['ruta']);
+        }
+    }
+
     public function test_admin_cannot_create_duplicate_route_or_invalid_fare_or_estado_id(): void
     {
         $admin = $this->createUser('administrador', 'admin@example.test');
