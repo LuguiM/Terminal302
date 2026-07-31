@@ -119,6 +119,18 @@ const busOptions = computed(() =>
 const summary = computed(() => dashboard.value?.resumen ?? {})
 const dailySeries = computed(() => dashboard.value?.series?.por_dia ?? [])
 const rankings = computed(() => dashboard.value?.rankings ?? {})
+const hasDailySeries = computed(() =>
+  dailySeries.value.some((item) =>
+    Number(item.tickets_vendidos ?? 0) > 0
+    || Number(item.tickets_validados ?? 0) > 0,
+  ),
+)
+const hasRouteRankings = computed(() =>
+  (rankings.value.rutas ?? []).some((item) =>
+    Number(item.tickets_vendidos ?? 0) > 0
+    || Number(item.tickets_validados ?? 0) > 0,
+  ),
+)
 
 const scheduleHeaders = [
   { title: 'Ruta', key: 'ruta' },
@@ -614,11 +626,48 @@ onMounted(async () => {
               Vendidos vs validados
             </v-card-title>
             <v-card-text class="dashboard-chart-body">
+              <div
+                v-if="loading"
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-progress-circular
+                  color="primary"
+                  indeterminate
+                  size="40"
+                />
+                <span>Cargando datos...</span>
+              </div>
+              <div
+                v-else-if="error"
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-icon
+                  color="error"
+                  icon="mdi-alert-circle-outline"
+                  size="40"
+                />
+                <span>No se pudo cargar la información.</span>
+              </div>
               <Line
+                v-else-if="hasDailySeries"
                 aria-label="Gráfica de tickets vendidos y validados por día"
                 :data="lineChartData"
                 :options="chartOptions"
               />
+              <div
+                v-else
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-icon
+                  color="secondary"
+                  icon="mdi-chart-line-variant"
+                  size="48"
+                />
+                <span>Sin datos para mostrar.</span>
+              </div>
             </v-card-text>
           </v-card>
         </v-col>
@@ -632,11 +681,48 @@ onMounted(async () => {
               Rutas con mayor flujo
             </v-card-title>
             <v-card-text class="dashboard-chart-body">
+              <div
+                v-if="loading"
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-progress-circular
+                  color="primary"
+                  indeterminate
+                  size="40"
+                />
+                <span>Cargando datos...</span>
+              </div>
+              <div
+                v-else-if="error"
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-icon
+                  color="error"
+                  icon="mdi-alert-circle-outline"
+                  size="40"
+                />
+                <span>No se pudo cargar la información.</span>
+              </div>
               <Bar
+                v-else-if="hasRouteRankings"
                 aria-label="Gráfica de rutas con más tickets vendidos y validados"
                 :data="barChartData"
                 :options="chartOptions"
               />
+              <div
+                v-else
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-icon
+                  color="secondary"
+                  icon="mdi-chart-bar"
+                  size="48"
+                />
+                <span>Sin datos para mostrar.</span>
+              </div>
             </v-card-text>
           </v-card>
         </v-col>
@@ -709,5 +795,17 @@ onMounted(async () => {
 <style scoped>
 .dashboard-chart-body {
   height: 320px;
+}
+
+.dashboard-chart-state {
+  align-items: center;
+  color: rgb(var(--v-theme-secondary));
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  gap: 12px;
+  height: 100%;
+  justify-content: center;
+  text-align: center;
 }
 </style>
