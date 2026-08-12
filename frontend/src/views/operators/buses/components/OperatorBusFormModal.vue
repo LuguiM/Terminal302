@@ -255,8 +255,10 @@ watch(
         </div>
         <v-text-field
           v-model="form.marca"
+          autocomplete="organization"
           density="comfortable"
           :error-messages="v$.marca.$errors.map((error) => error.$message)"
+          name="bus_brand"
           placeholder="Ej: Mercedes-Benz"
           variant="outlined"
           @blur="v$.marca.$touch"
@@ -269,8 +271,10 @@ watch(
         </div>
         <v-text-field
           v-model="form.nombre_unidad"
+          autocomplete="off"
           density="comfortable"
           :error-messages="v$.nombre_unidad.$errors.map((error) => error.$message)"
+          name="bus_name"
           placeholder="Ej: Kenias"
           variant="outlined"
           @blur="v$.nombre_unidad.$touch"
@@ -303,9 +307,14 @@ watch(
         </div>
         <v-text-field
           v-model="form.capacidad"
+          autocomplete="off"
           density="comfortable"
           :error-messages="v$.capacidad.$errors.map((error) => error.$message)"
+          inputmode="numeric"
+          min="1"
+          name="bus_capacity"
           placeholder="Ej: 50"
+          step="1"
           type="number"
           variant="outlined"
           @blur="v$.capacidad.$touch"
@@ -318,8 +327,11 @@ watch(
         </div>
         <v-text-field
           v-model="form.placa"
+          autocapitalize="characters"
+          autocomplete="off"
           density="comfortable"
           :error-messages="v$.placa.$errors.map((error) => error.$message)"
+          name="bus_license_plate"
           placeholder="Ej: AB-123"
           variant="outlined"
           @blur="v$.placa.$touch"

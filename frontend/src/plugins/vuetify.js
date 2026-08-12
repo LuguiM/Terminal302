@@ -3,6 +3,7 @@ import 'vuetify/styles'
 
 import { createVuetify } from 'vuetify'
 import { aliases, mdi } from 'vuetify/iconsets/mdi'
+import { es } from 'vuetify/locale'
 
 const terminal302Theme = {
   dark: false,
@@ -23,12 +24,22 @@ const terminal302Theme = {
 }
 
 export default createVuetify({
+  date: {
+    locale: {
+      es: 'es-SV',
+    },
+  },
   icons: {
     defaultSet: 'mdi',
     aliases,
     sets: {
       mdi,
     },
+  },
+  locale: {
+    locale: 'es',
+    fallback: 'es',
+    messages: { es },
   },
   theme: {
     defaultTheme: 'terminal302',
