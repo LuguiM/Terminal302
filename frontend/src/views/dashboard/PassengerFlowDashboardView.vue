@@ -11,9 +11,10 @@ import {
   Tooltip,
 } from 'chart.js'
 import { Bar, Line } from 'vue-chartjs'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, shallowRef } from 'vue'
 
 import PageTitle from '@/components/common/PageTitle.vue'
+import MonthInput from '@/components/common/MonthInput.vue'
 import { getAdminOperators } from '@/services/adminOperatorService'
 import { getAdminScheduleRoutes } from '@/services/adminScheduleService'
 import {
@@ -23,6 +24,7 @@ import {
 import { getOperatorBuses } from '@/services/operatorBusService'
 import { getOperatorScheduleRoutes } from '@/services/operatorScheduleService'
 import { useAuthStore } from '@/stores/authStore'
+import { formatDisplayDate, toApiDate } from '@/utils/date'
 
 ChartJS.register(
   Title,
@@ -49,9 +51,9 @@ const filtersLoading = ref(false)
 const error = ref('')
 const dashboard = ref(null)
 const filterMode = ref('fecha')
-const singleDate = ref(formatInputDate(new Date()))
-const startDate = ref(formatInputDate(new Date()))
-const endDate = ref(formatInputDate(new Date()))
+const singleDate = shallowRef(new Date())
+const startDate = shallowRef(new Date())
+const endDate = shallowRef(new Date())
 const month = ref(formatInputMonth(new Date()))
 const routeId = ref(null)
 const operatorId = ref(null)
@@ -297,12 +299,12 @@ function buildParams() {
   }
 
   if (filterMode.value === 'fecha') {
-    params.fecha = singleDate.value || undefined
+    params.fecha = toApiDate(singleDate.value)
   }
 
   if (filterMode.value === 'rango') {
-    params.fecha_desde = startDate.value || undefined
-    params.fecha_hasta = endDate.value || undefined
+    params.fecha_desde = toApiDate(startDate.value)
+    params.fecha_hasta = toApiDate(endDate.value)
   }
 
   if (filterMode.value === 'mes') {
@@ -373,9 +375,9 @@ async function fetchDashboard() {
 
 function clearFilters() {
   filterMode.value = 'fecha'
-  singleDate.value = formatInputDate(new Date())
-  startDate.value = formatInputDate(new Date())
-  endDate.value = formatInputDate(new Date())
+  singleDate.value = null
+  startDate.value = new Date()
+  endDate.value = new Date()
   month.value = formatInputMonth(new Date())
   routeId.value = null
   operatorId.value = null
@@ -437,35 +439,38 @@ onMounted(async () => {
               sm="6"
               md="2"
             >
-              <v-text-field
+              <v-date-input
                 v-model="singleDate"
                 density="comfortable"
+                :display-format="formatDisplayDate"
                 hide-details
+                prepend-icon=""
                 label="Fecha"
-                type="date"
                 variant="outlined"
               />
             </v-col>
 
             <template v-if="filterMode === 'rango'">
               <v-col cols="12" sm="6" md="2">
-                <v-text-field
+                <v-date-input
                   v-model="startDate"
                   density="comfortable"
+                  :display-format="formatDisplayDate"
                   hide-details
+                  prepend-icon=""
                   label="Desde"
-                  type="date"
                   variant="outlined"
                 />
               </v-col>
 
               <v-col cols="12" sm="6" md="2">
-                <v-text-field
+                <v-date-input
                   v-model="endDate"
                   density="comfortable"
+                  :display-format="formatDisplayDate"
                   hide-details
+                  prepend-icon=""
                   label="Hasta"
-                  type="date"
                   variant="outlined"
                 />
               </v-col>
@@ -477,12 +482,11 @@ onMounted(async () => {
               sm="6"
               md="2"
             >
-              <v-text-field
+              <MonthInput
                 v-model="month"
                 density="comfortable"
                 hide-details
                 label="Mes"
-                type="month"
                 variant="outlined"
               />
             </v-col>
@@ -591,7 +595,7 @@ onMounted(async () => {
               <v-icon
                 color="blueLigth"
                 :icon="kpi.icon"
-                size="28"
+                size="25"
               />
               <div>
                 <div class="text-secondary text-subtitle-2 font-weight-bold">
