@@ -99,7 +99,7 @@ const submitLogin = async () => {
                 class="login-label text-primary d-block mb-2"
                 for="login-email"
               >
-                Usuario
+                Correo
               </label>
 
               <v-text-field
@@ -110,7 +110,6 @@ const submitLogin = async () => {
                 class="mb-2"
                 density="comfortable"
                 hide-details="auto"
-                placeholder="Administrador"
                 rounded="lg"
                 :rules="requiredRules"
                 variant="outlined"
@@ -141,7 +140,6 @@ const submitLogin = async () => {
                 density="comfortable"
                 hide-details="auto"
                 :append-inner-icon="showPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
-                placeholder="********"
                 rounded="lg"
                 :rules="requiredRules"
                 :type="passwordType"
