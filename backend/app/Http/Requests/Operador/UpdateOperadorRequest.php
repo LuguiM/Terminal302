@@ -4,6 +4,9 @@ namespace App\Http\Requests\Operador;
 
 use App\Models\TipoOperador;
 use App\Models\Operador;
+use App\Rules\ValidDui;
+use App\Rules\ValidNit;
+use App\Rules\ValidSalvadoranPhone;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -28,12 +31,12 @@ class UpdateOperadorRequest extends FormRequest
             'nombre_comercial' => ['required', 'string', 'max:255'],
             'razon_social' => ['nullable', 'string', 'max:255'],
             'representante_legal' => ['nullable', 'string', 'max:255'],
-            'telefono' => ['nullable', 'string', 'max:50'],
-            'telefono_opcional' => ['nullable', 'string', 'max:50'],
+            'telefono' => ['required', 'string', new ValidSalvadoranPhone],
+            'telefono_opcional' => ['nullable', 'string', new ValidSalvadoranPhone],
             'correo_administrativo' => ['nullable', 'email', 'max:255'],
             'direccion' => ['nullable', 'string', 'max:255'],
-            'nit' => ['nullable', 'string', 'regex:/^\d{4}-\d{6}-\d{3}-\d$/', Rule::unique('operadores', 'nit')->ignore($operadorId)],
-            'dui' => ['nullable', 'string', 'regex:/^\d{8}-\d$/', Rule::unique('operadores', 'dui')->ignore($operadorId)],
+            'nit' => ['nullable', 'string', new ValidNit, Rule::unique('operadores', 'nit')->ignore($operadorId)],
+            'dui' => ['nullable', 'string', new ValidDui, Rule::unique('operadores', 'dui')->ignore($operadorId)],
             'estado_id' => ['prohibited'],
             'user_id' => ['prohibited'],
             'motivo_desactivacion' => ['prohibited'],
@@ -41,6 +44,23 @@ class UpdateOperadorRequest extends FormRequest
             'documento' => ['prohibited'],
             'correo' => ['prohibited'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $fields = [
+            'nombre_comercial', 'razon_social', 'representante_legal', 'telefono',
+            'telefono_opcional', 'correo_administrativo', 'direccion', 'nit', 'dui',
+        ];
+        $normalized = [];
+
+        foreach ($fields as $field) {
+            if ($this->has($field) && is_string($this->input($field))) {
+                $normalized[$field] = trim($this->input($field));
+            }
+        }
+
+        $this->merge($normalized);
     }
 
     public function withValidator(Validator $validator): void
@@ -80,6 +100,12 @@ class UpdateOperadorRequest extends FormRequest
         if (blank($this->input('nit'))) {
             $validator->errors()->add('nit', 'El NIT es obligatorio para operadores de tipo empresa.');
         }
+
+        foreach (['dui', 'telefono_opcional'] as $field) {
+            if ($this->filled($field)) {
+                $validator->errors()->add($field, 'Este campo no corresponde a un operador de tipo empresa.');
+            }
+        }
     }
 
     private function validatePersona(Validator $validator): void
@@ -88,8 +114,10 @@ class UpdateOperadorRequest extends FormRequest
             $validator->errors()->add('dui', 'El DUI es obligatorio para operadores de tipo persona.');
         }
 
-        if (blank($this->input('telefono'))) {
-            $validator->errors()->add('telefono', 'El telefono es obligatorio para operadores de tipo persona.');
+        foreach (['razon_social', 'representante_legal', 'nit', 'correo_administrativo', 'direccion'] as $field) {
+            if ($this->filled($field)) {
+                $validator->errors()->add($field, 'Este campo no corresponde a un operador de tipo persona.');
+            }
         }
     }
 }

@@ -1,7 +1,16 @@
 <script setup>
 import { computed, reactive } from "vue";
 import { useVuelidate } from "@vuelidate/core";
-import { helpers, required } from "@vuelidate/validators";
+import { helpers, maxLength, required } from "@vuelidate/validators";
+
+import {
+  formatDui,
+  formatPhone,
+  hasRepeatedDigits,
+  hasValidDuiCheckDigit,
+  hasValidDuiFormat,
+  hasValidPhoneFormat,
+} from "@/utils/salvadoranValidation";
 
 defineProps({
   loading: {
@@ -18,22 +27,29 @@ const form = reactive({
   nombre_comercial: "",
 });
 
+const optional = (validator) => (value) => !helpers.req(value) || validator(value);
+
 const rules = computed(() => ({
   dui: {
     required: helpers.withMessage("El DUI es requerido.", required),
     format: helpers.withMessage(
       "El DUI debe tener formato ########-#.",
-      helpers.regex(/^\d{8}-\d$/),
+      optional(hasValidDuiFormat),
     ),
+    repeated: helpers.withMessage("El DUI no puede contener un solo digito repetido.", (value) => !hasRepeatedDigits(value)),
+    checkDigit: helpers.withMessage("El DUI no tiene un digito verificador valido.", optional(hasValidDuiCheckDigit)),
   },
   telefono: {
     required: helpers.withMessage("El telefono es requerido.", required),
+    format: helpers.withMessage("El telefono debe tener formato ####-#### y comenzar con 2, 6 o 7.", optional(hasValidPhoneFormat)),
+    repeated: helpers.withMessage("El telefono no puede contener un solo digito repetido.", (value) => !hasRepeatedDigits(value)),
   },
   nombre_comercial: {
     required: helpers.withMessage(
       "El nombre comercial es requerido.",
       required,
     ),
+    maxLength: helpers.withMessage("El nombre comercial no debe superar 255 caracteres.", maxLength(255)),
   },
 }));
 
@@ -48,7 +64,10 @@ const submitForm = async () => {
     return;
   }
 
-  emit("submit", { ...form });
+  emit("submit", {
+    ...form,
+    nombre_comercial: form.nombre_comercial.trim(),
+  });
 };
 </script>
 
@@ -68,9 +87,12 @@ const submitForm = async () => {
       density="comfortable"
       :error-messages="v$.dui.$errors.map((error) => error.$message)"
       hide-details="auto"
-      placeholder="12345678-9"
+      inputmode="numeric"
+      maxlength="10"
+      placeholder="########-#"
       rounded="lg"
       variant="outlined"
+      @update:model-value="form.dui = formatDui($event)"
       @blur="v$.dui.$touch"
     />
 
@@ -88,9 +110,12 @@ const submitForm = async () => {
       density="comfortable"
       :error-messages="v$.telefono.$errors.map((error) => error.$message)"
       hide-details="auto"
-      placeholder="7777-7777"
+      inputmode="numeric"
+      maxlength="9"
+      placeholder="####-####"
       rounded="lg"
       variant="outlined"
+      @update:model-value="form.telefono = formatPhone($event)"
       @blur="v$.telefono.$touch"
     />
 
@@ -110,6 +135,7 @@ const submitForm = async () => {
         v$.nombre_comercial.$errors.map((error) => error.$message)
       "
       hide-details="auto"
+      maxlength="255"
       placeholder="Ej: Luis"
       rounded="lg"
       variant="outlined"
