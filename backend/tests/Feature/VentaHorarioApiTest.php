@@ -152,7 +152,8 @@ class VentaHorarioApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('message', 'Venta de horario cerrada correctamente.')
             ->assertJsonPath('venta_horario.venta_cerrada', true)
-            ->assertJsonPath('venta_horario.cerrada_por.id', $vendedor->id)
+            ->assertJsonPath('venta_horario.cerrada_por.name', $vendedor->name)
+            ->assertJsonMissingPath('venta_horario.cerrada_por.id')
             ->assertJsonPath('venta_horario.motivo_cierre', 'Unidad completa');
 
         $this->assertDatabaseHas('ventas_horarios', [

@@ -282,6 +282,24 @@ const routes = [
     },
   },
   {
+    path: '/recuperar-contrasena',
+    name: 'forgot-password',
+    component: () => import('@/views/auth/ForgotPasswordView.vue'),
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
+    },
+  },
+  {
+    path: '/restablecer-contrasena',
+    name: 'reset-password',
+    component: () => import('@/views/auth/ResetPasswordView.vue'),
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
+    },
+  },
+  {
     path: '/cambiar-contrasena',
     name: 'change-password',
     component: () => import('@/views/auth/ChangePasswordView.vue'),
@@ -334,7 +352,7 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (to.name === 'login' && accessToken) {
+  if ((to.name === 'login' || to.meta.guestOnly) && accessToken) {
     return getAuthenticatedHomeRoute(authStore)
   }
 

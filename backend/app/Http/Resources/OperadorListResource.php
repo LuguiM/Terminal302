@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class RutaResource extends JsonResource
+class OperadorListResource extends JsonResource
 {
     /**
      * @return array<string, mixed>
@@ -14,12 +14,13 @@ class RutaResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'ruta' => $this->ruta,
-            'denominacion' => $this->denominacion,
-            'tarifa' => $this->tarifa,
+            'nombre_comercial' => $this->nombre_comercial,
+            'razon_social' => $this->razon_social,
             'estado' => [
                 'nombre' => $this->estado?->nombre,
             ],
+            'rutas_count' => (int) ($this->operador_rutas_count ?? 0),
+            'buses_count' => (int) ($this->buses_count ?? 0),
         ];
     }
 }

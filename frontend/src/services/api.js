@@ -70,6 +70,10 @@ api.interceptors.response.use(
 const getErrorMessage = (error) => {
   const data = error.response?.data
 
+  if (error.code === 'ERR_NETWORK' || (error.request && !error.response)) {
+    return 'No se pudo conectar con el servidor. Por favor, verifica tu conexión a internet.'
+  }
+
   if (data?.errors) {
     const firstError = Object.values(data.errors)
       .flat()

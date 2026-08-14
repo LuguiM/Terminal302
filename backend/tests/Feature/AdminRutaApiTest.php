@@ -33,8 +33,6 @@ class AdminRutaApiTest extends TestCase
                         'denominacion',
                         'tarifa',
                         'estado',
-                        'created_at',
-                        'updated_at',
                     ],
                 ],
                 'pagination' => [
@@ -83,7 +81,8 @@ class AdminRutaApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('message', 'Ruta creada correctamente.')
             ->assertJsonPath('ruta.ruta', '301-A')
-            ->assertJsonPath('ruta.estado.id', $active->id);
+            ->assertJsonPath('ruta.estado.nombre', 'Activo')
+            ->assertJsonMissingPath('ruta.estado.id');
 
         $this->assertDatabaseHas('rutas', [
             'ruta' => '301-A',

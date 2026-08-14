@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Operador\ToggleOperadorStatusRequest;
 use App\Http\Resources\BusResource;
 use App\Http\Resources\OperadorEmpleadoResource;
+use App\Http\Resources\OperadorListResource;
 use App\Http\Resources\OperadorRutaResource;
 use App\Http\Resources\OperadorResource;
 use App\Models\Estado;
@@ -23,7 +24,7 @@ class AdminOperadorController extends Controller
         $search = trim($request->string('search')->toString());
 
         $operadores = Operador::query()
-            ->with(['user', 'tipoOperador', 'estado'])
+            ->with('estado')
             ->withCount(['operadorRutas', 'buses'])
             ->when($search !== '', function ($query) use ($search): void {
                 $searchTerm = '%'.mb_strtolower($search).'%';
@@ -46,7 +47,7 @@ class AdminOperadorController extends Controller
             ->orderBy('id')
             ->paginate($perPage);
 
-        return ApiResponse::paginated($operadores, 'operadores', OperadorResource::class);
+        return ApiResponse::paginated($operadores, 'operadores', OperadorListResource::class);
     }
 
     public function show(Operador $operador): OperadorResource
@@ -119,7 +120,9 @@ class AdminOperadorController extends Controller
 
         return response()->json([
             'message' => 'Estado del operador actualizado correctamente.',
-            'operador' => new OperadorResource($operador->fresh(['user', 'tipoOperador', 'estado'])),
+            'operador' => new OperadorListResource(
+                $operador->fresh('estado')->loadCount(['operadorRutas', 'buses']),
+            ),
         ]);
     }
 

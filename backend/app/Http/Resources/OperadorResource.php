@@ -17,7 +17,6 @@ class OperadorResource extends JsonResource
         return [
             'id' => $this->id,
             'user' => $this->whenLoaded('user', fn (): array => [
-                'id' => $this->user?->id,
                 'name' => $this->user?->name,
                 'email' => $this->user?->email,
             ]),
@@ -35,7 +34,6 @@ class OperadorResource extends JsonResource
             'dui' => $this->dui,
             'direccion' => $this->direccion,
             'estado' => [
-                'id' => $this->estado?->id,
                 'nombre' => $this->estado?->nombre,
             ],
             'motivo_desactivacion' => $this->motivo_desactivacion,
@@ -47,8 +45,6 @@ class OperadorResource extends JsonResource
                 array_key_exists('buses_count', $attributes),
                 (int) ($this->buses_count ?? 0),
             ),
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }
