@@ -38,6 +38,8 @@ class AuthApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('token_type', 'Bearer')
             ->assertJsonPath('requires_operator_registration', false)
+            ->assertJsonPath('operator_access.blocked', false)
+            ->assertJsonPath('operator_access.reason', null)
             ->assertJsonPath('user.email', $user->email)
             ->assertJsonPath('user.must_change_password', true)
             ->assertJsonStructure(['access_token']);
@@ -47,7 +49,8 @@ class AuthApiTest extends TestCase
         $this->withToken($token)
             ->getJson('/api/user')
             ->assertOk()
-            ->assertJsonPath('data.email', $user->email);
+            ->assertJsonPath('data.email', $user->email)
+            ->assertJsonPath('operator_access.blocked', false);
 
         $this->withToken($token)
             ->postJson('/api/change-initial-password', [

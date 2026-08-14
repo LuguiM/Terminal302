@@ -89,6 +89,49 @@ class ValidacionTicketApiTest extends TestCase
             ->assertJsonMissingPath('validacion');
     }
 
+    public function test_validator_is_temporarily_blocked_when_assigned_operator_is_inactive(): void
+    {
+        $this->estado(Estado::DESACTIVADO_ID, 'Desactivado');
+        $empresario = $this->createUser('empresario', 'inactive-owner@example.test');
+        $operador = $this->createOperador($empresario);
+        $operador->forceFill([
+            'estado_id' => Estado::DESACTIVADO_ID,
+            'motivo_desactivacion' => 'Permiso de operacion vencido',
+        ])->save();
+        $validador = $this->createUser('validador', 'blocked-validator@example.test');
+        $empleado = $this->createOperadorEmpleado($operador, $validador);
+
+        $loginResponse = $this->postJson('/api/login', [
+            'email' => $validador->email,
+            'password' => 'Temporal123',
+        ]);
+
+        $loginResponse
+            ->assertOk()
+            ->assertJsonPath('operator_access.blocked', true)
+            ->assertJsonPath('operator_access.reason', 'Permiso de operacion vencido');
+
+        Sanctum::actingAs($validador);
+
+        $this->postJson('/api/validador/tickets/validar', [
+            'codigo_ticket' => 'TKT-BLOCKED',
+        ])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'OPERATOR_DISABLED');
+
+        $this->assertSame(Estado::ACTIVO_ID, $validador->fresh()->estado_id);
+        $this->assertSame(Estado::ACTIVO_ID, $empleado->fresh()->estado_id);
+
+        $operador->forceFill([
+            'estado_id' => Estado::ACTIVO_ID,
+            'motivo_desactivacion' => null,
+        ])->save();
+        $validador->unsetRelation('operadorEmpleado');
+
+        $this->getJson('/api/validador/validaciones')
+            ->assertOk();
+    }
+
     public function test_validador_cannot_validate_same_ticket_twice(): void
     {
         $validador = $this->createUser('validador', 'validador@example.test');

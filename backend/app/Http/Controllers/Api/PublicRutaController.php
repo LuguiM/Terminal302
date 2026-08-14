@@ -26,7 +26,10 @@ class PublicRutaController extends Controller
 
         $rutas = Ruta::query()
             ->where('estado_id', $activeStatus->id)
-            ->whereHas('horarios', fn ($query) => $query->where('estado_id', $activeStatus->id))
+            ->whereHas('horarios', fn ($query) => $query
+                ->where('estado_id', $activeStatus->id)
+                ->whereHas('operador', fn ($operatorQuery) => $operatorQuery
+                    ->where('estado_id', $activeStatus->id)))
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = mb_strtolower($request->string('search')->toString());
 
@@ -68,6 +71,7 @@ class PublicRutaController extends Controller
             ->with(['ruta', 'dia', 'operador', 'bus'])
             ->where('ruta_id', $ruta->id)
             ->where('estado_id', $activeStatus->id)
+            ->whereHas('operador', fn ($query) => $query->where('estado_id', $activeStatus->id))
             ->when($request->filled('dia_id'), fn ($query) => $query->where('dia_id', $request->integer('dia_id')))
             ->join('dias', 'horarios.dia_id', '=', 'dias.id')
             ->orderBy('dias.orden')

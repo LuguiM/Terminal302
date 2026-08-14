@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Estado;
+use App\Services\OperatorAccessService;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,28 +10,22 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureOperadorIsActive
 {
+    public function __construct(private readonly OperatorAccessService $operatorAccessService)
+    {
+    }
+
     /**
      * @param  Closure(Request): Response  $next
      */
     public function handle(Request $request, Closure $next): Response|JsonResponse
     {
-        $operador = $request->user()?->operador;
+        $access = $this->operatorAccessService->forUser($request->user());
 
-        if (! $operador) {
-            return $next($request);
-        }
-
-        $activeStatus = Estado::activo();
-
-        if (! $activeStatus) {
-            return response()->json([
-                'message' => 'No se encontro el estado requerido: activo.',
-            ], 500);
-        }
-
-        if ((int) $operador->estado_id !== (int) $activeStatus->id) {
+        if ($access['blocked']) {
             return response()->json([
                 'message' => 'El operador esta desactivado. No puede realizar acciones operativas.',
+                'code' => 'OPERATOR_DISABLED',
+                'reason' => $access['reason'],
             ], 403);
         }
 

@@ -641,6 +641,12 @@ class VendedorTicketController extends Controller
             ], 422);
         }
 
+        if ((int) $ventaHorario->horario->operador->estado_id !== (int) $activeStatus->id) {
+            return response()->json([
+                'message' => 'El operador del horario esta desactivado.',
+            ], 422);
+        }
+
         return null;
     }
 

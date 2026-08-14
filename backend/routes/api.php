@@ -89,7 +89,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/tickets/{id}/print', [VendedorTicketController::class, 'print']);
         });
 
-    Route::middleware(['password.changed', 'role:validador'])
+    Route::middleware(['password.changed', 'role:validador', 'operator.active'])
         ->prefix('validador')
         ->group(function (): void {
             Route::post('/tickets/validar', [ValidadorTicketController::class, 'validar']);

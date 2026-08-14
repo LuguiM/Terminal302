@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { TOKEN_STORAGE_KEY } from '@/services/api'
 import {
   changeInitialPassword,
+  getCurrentUser,
   login as loginRequest,
   logout as logoutRequest,
 } from '@/services/authService'
@@ -10,6 +11,17 @@ import {
 const USER_STORAGE_KEY = 'terminal302_user'
 const MUST_CHANGE_PASSWORD_STORAGE_KEY = 'must_change_password'
 const REQUIRES_OPERATOR_REGISTRATION_STORAGE_KEY = 'requires_operator_registration'
+const OPERATOR_ACCESS_STORAGE_KEY = 'operator_access'
+
+const defaultOperatorAccess = () => ({ blocked: false, reason: null })
+
+const getStoredOperatorAccess = () => {
+  try {
+    return JSON.parse(localStorage.getItem(OPERATOR_ACCESS_STORAGE_KEY)) ?? defaultOperatorAccess()
+  } catch {
+    return defaultOperatorAccess()
+  }
+}
 
 const getStoredMustChangePassword = () => {
   return localStorage.getItem(MUST_CHANGE_PASSWORD_STORAGE_KEY) === 'true'
@@ -40,6 +52,7 @@ export const useAuthStore = defineStore('auth', {
     accessToken: localStorage.getItem(TOKEN_STORAGE_KEY),
     mustChangePassword: getStoredMustChangePassword(),
     requiresOperatorRegistration: getStoredRequiresOperatorRegistration(),
+    operatorAccess: getStoredOperatorAccess(),
     loading: false,
     error: null,
   }),
@@ -54,6 +67,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = getStoredUser()
       this.mustChangePassword = getStoredMustChangePassword()
       this.requiresOperatorRegistration = getStoredRequiresOperatorRegistration()
+      this.operatorAccess = getStoredOperatorAccess()
     },
 
     setRequiresOperatorRegistration(value) {
@@ -62,6 +76,14 @@ export const useAuthStore = defineStore('auth', {
         REQUIRES_OPERATOR_REGISTRATION_STORAGE_KEY,
         String(this.requiresOperatorRegistration),
       )
+    },
+
+    setOperatorAccess(value) {
+      this.operatorAccess = {
+        blocked: Boolean(value?.blocked),
+        reason: value?.reason || null,
+      }
+      localStorage.setItem(OPERATOR_ACCESS_STORAGE_KEY, JSON.stringify(this.operatorAccess))
     },
 
     setUserOperator(operator) {
@@ -93,6 +115,7 @@ export const useAuthStore = defineStore('auth', {
         this.user = data.user ?? null
         this.mustChangePassword = mustChangePassword
         this.requiresOperatorRegistration = requiresOperatorRegistration
+        this.setOperatorAccess(data.operator_access)
 
         if (accessToken) {
           localStorage.setItem(TOKEN_STORAGE_KEY, accessToken)
@@ -117,6 +140,19 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.loading = false
       }
+    },
+
+    async refreshSession() {
+      const { data } = await getCurrentUser({ suppressToast: true, skipGlobalLoader: true })
+
+      this.user = data.data ?? this.user
+      this.setOperatorAccess(data.operator_access)
+
+      if (this.user) {
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(this.user))
+      }
+
+      return data
     },
 
     async changePassword(payload) {
@@ -160,11 +196,13 @@ export const useAuthStore = defineStore('auth', {
         this.accessToken = null
         this.mustChangePassword = false
         this.requiresOperatorRegistration = false
+        this.operatorAccess = defaultOperatorAccess()
         this.error = null
         localStorage.removeItem(TOKEN_STORAGE_KEY)
         localStorage.removeItem(USER_STORAGE_KEY)
         localStorage.removeItem(MUST_CHANGE_PASSWORD_STORAGE_KEY)
         localStorage.removeItem(REQUIRES_OPERATOR_REGISTRATION_STORAGE_KEY)
+        localStorage.removeItem(OPERATOR_ACCESS_STORAGE_KEY)
       }
     },
   },

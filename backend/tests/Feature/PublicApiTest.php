@@ -108,6 +108,33 @@ class PublicApiTest extends TestCase
             ->assertJsonPath('message', 'No existen horarios activos para esta ruta.');
     }
 
+    public function test_inactive_operator_schedules_are_hidden_without_changing_schedule_status(): void
+    {
+        $context = $this->createHorarioContext('777', 'Ruta suspendida');
+        $context['operador']->forceFill([
+            'estado_id' => Estado::DESACTIVADO_ID,
+            'motivo_desactivacion' => 'Operacion suspendida',
+        ])->save();
+
+        $this->getJson('/api/public/rutas?search=777')
+            ->assertOk()
+            ->assertJsonPath('pagination.total', 0);
+
+        $this->getJson("/api/public/rutas/{$context['ruta']->id}/horarios")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'No existen horarios activos para esta ruta.');
+
+        $this->assertSame(Estado::ACTIVO_ID, $context['horario']->fresh()->estado_id);
+
+        $context['operador']->forceFill([
+            'estado_id' => Estado::ACTIVO_ID,
+            'motivo_desactivacion' => null,
+        ])->save();
+
+        $this->getJson("/api/public/rutas/{$context['ruta']->id}/horarios")
+            ->assertOk();
+    }
+
     public function test_public_ticket_lookup_returns_limited_data_without_auth_or_validation_side_effects(): void
     {
         $context = $this->createHorarioContext('302', 'Usulutan - San Salvador');
