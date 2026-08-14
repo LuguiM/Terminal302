@@ -151,7 +151,7 @@ const submitLogin = async () => {
                 class="text-none px-0 mb-8 mb-lg-12"
                 color="blueLigth"
                 slim
-                type="button"
+                :to="{ name: 'forgot-password' }"
                 variant="text"
               >
                 Recuperar contraseña
