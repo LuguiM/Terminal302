@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Ticket\ValidarTicketRequest;
-use App\Http\Resources\TicketResource;
-use App\Http\Resources\ValidacionResource;
 use App\Models\Estado;
 use App\Models\Operador;
 use App\Models\User;
@@ -108,8 +106,6 @@ class ValidadorTicketController extends Controller
 
         return response()->json([
             'message' => 'Ticket validado correctamente.',
-            'ticket' => new TicketResource($result['ticket']),
-            'validacion' => new ValidacionResource($result['validacion']),
         ]);
     }
 

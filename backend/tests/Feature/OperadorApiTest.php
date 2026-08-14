@@ -152,9 +152,13 @@ class OperadorApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('pagination.total', 1)
             ->assertJsonPath('operadores.0.nombre_comercial', $operador->nombre_comercial)
-            ->assertJsonPath('operadores.0.user.email', $empresario->email)
             ->assertJsonPath('operadores.0.rutas_count', 1)
-            ->assertJsonPath('operadores.0.buses_count', 1);
+            ->assertJsonPath('operadores.0.buses_count', 1)
+            ->assertJsonMissingPath('operadores.0.user')
+            ->assertJsonMissingPath('operadores.0.dui')
+            ->assertJsonMissingPath('operadores.0.nit')
+            ->assertJsonMissingPath('operadores.0.telefono')
+            ->assertJsonMissingPath('operadores.0.direccion');
 
         $this->getJson("/api/admin/operadores/{$operador->id}")
             ->assertOk()
@@ -248,7 +252,7 @@ class OperadorApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('message', 'Estado del operador actualizado correctamente.')
             ->assertJsonPath('operador.estado.nombre', 'Desactivado')
-            ->assertJsonPath('operador.motivo_desactivacion', 'Documentacion vencida');
+            ->assertJsonMissingPath('operador.motivo_desactivacion');
 
         $this->postJson('/api/login', [
             'email' => $empresario->email,

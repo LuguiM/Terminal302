@@ -38,11 +38,8 @@ class HorarioResource extends JsonResource
             'hora_salida' => substr((string) $this->hora_salida, 0, 5),
             'sobreventa_permitida' => (bool) $this->sobreventa_permitida,
             'estado' => [
-                'id' => $this->estado?->id,
                 'nombre' => $this->estado?->nombre,
             ],
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

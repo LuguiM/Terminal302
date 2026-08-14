@@ -46,7 +46,6 @@ class TicketPlantillaApiTest extends TestCase
                     [
                         'id',
                         'nombre',
-                        'image_path',
                         'image_url',
                         'download_url',
                         'image_size_bytes',
@@ -61,7 +60,6 @@ class TicketPlantillaApiTest extends TestCase
                         'estado',
                         'es_predeterminada',
                         'created_at',
-                        'updated_at',
                     ],
                 ],
                 'pagination' => [

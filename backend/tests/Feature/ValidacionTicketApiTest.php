@@ -52,12 +52,8 @@ class ValidacionTicketApiTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('message', 'Ticket validado correctamente.')
-            ->assertJsonPath('ticket.id', $ticket->id)
-            ->assertJsonPath('ticket.estado.nombre', 'Validado')
-            ->assertJsonPath('validacion.ticket.codigo_ticket', 'TKT-VALID-001')
-            ->assertJsonPath('validacion.validador.id', $validador->id)
-            ->assertJsonPath('validacion.resultado', 'valido')
-            ->assertJsonPath('validacion.observacion', 'Abordaje confirmado');
+            ->assertJsonMissingPath('ticket')
+            ->assertJsonMissingPath('validacion');
 
         $this->assertDatabaseHas('tickets', [
             'id' => $ticket->id,
@@ -89,9 +85,8 @@ class ValidacionTicketApiTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('message', 'Ticket validado correctamente.')
-            ->assertJsonPath('ticket.id', $ticket->id)
-            ->assertJsonPath('ticket.estado.nombre', 'Validado')
-            ->assertJsonPath('validacion.validador.id', $validador->id);
+            ->assertJsonMissingPath('ticket')
+            ->assertJsonMissingPath('validacion');
     }
 
     public function test_validador_cannot_validate_same_ticket_twice(): void
@@ -206,14 +201,11 @@ class ValidacionTicketApiTest extends TestCase
             ->assertJsonStructure([
                 'validaciones' => [
                     [
-                        'id',
                         'ticket',
                         'validador',
                         'fecha_validacion',
                         'resultado',
                         'observacion',
-                        'created_at',
-                        'updated_at',
                     ],
                 ],
                 'pagination' => [
@@ -224,9 +216,9 @@ class ValidacionTicketApiTest extends TestCase
                 ],
             ])
             ->assertJsonPath('pagination.total', 1)
-            ->assertJsonPath('validaciones.0.id', $validacion->id)
             ->assertJsonPath('validaciones.0.ticket.codigo_ticket', 'TKT-LIST-001')
-            ->assertJsonPath('validaciones.0.validador.id', $validador->id);
+            ->assertJsonPath('validaciones.0.validador.name', $validador->name)
+            ->assertJsonMissingPath('validaciones.0.validador.id');
     }
 
     public function test_validation_request_rejects_forbidden_fields(): void

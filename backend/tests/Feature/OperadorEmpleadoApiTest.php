@@ -37,7 +37,6 @@ class OperadorEmpleadoApiTest extends TestCase
                 'empleados' => [
                     [
                         'id',
-                        'user_id',
                         'name',
                         'email',
                         'estado',

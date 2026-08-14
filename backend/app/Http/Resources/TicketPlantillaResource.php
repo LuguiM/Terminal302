@@ -16,7 +16,6 @@ class TicketPlantillaResource extends JsonResource
         return [
             'id' => $this->id,
             'nombre' => $this->nombre,
-            'image_path' => $this->image_path,
             'image_url' => $this->image_path ? Storage::url($this->image_path) : null,
             'download_url' => $this->id ? url("/api/admin/ticket-plantillas/{$this->id}/download") : null,
             'image_size_bytes' => $this->image_path && Storage::exists($this->image_path)
@@ -31,12 +30,10 @@ class TicketPlantillaResource extends JsonResource
             'salida_location' => $this->salida_location,
             'operador_location' => $this->operador_location,
             'estado' => [
-                'id' => $this->estado?->id,
                 'nombre' => $this->estado?->nombre,
             ],
             'es_predeterminada' => $this->es_predeterminada,
             'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

@@ -18,16 +18,13 @@ class VentaHorarioResource extends JsonResource
             'fecha_operacion' => $this->fecha_operacion?->toDateString(),
             'venta_cerrada' => (bool) $this->venta_cerrada,
             'cerrada_por' => $this->whenLoaded('cerradaPor', fn (): ?array => $this->cerradaPor ? [
-                'id' => $this->cerradaPor->id,
                 'name' => $this->cerradaPor->name,
-                'email' => $this->cerradaPor->email,
             ] : null),
             'fecha_cierre' => $this->fecha_cierre?->toISOString(),
             'motivo_cierre' => $this->motivo_cierre,
             'total_tickets_vendidos' => $this->total_tickets_vendidos,
             'total_tickets_sobreventa' => $this->total_tickets_sobreventa,
             'estado' => [
-                'id' => $this->estado?->id,
                 'nombre' => $this->estado?->nombre,
             ],
             'horario' => $this->whenLoaded('horario', fn (): array => [
@@ -51,8 +48,6 @@ class VentaHorarioResource extends JsonResource
                     'capacidad' => $this->horario?->bus?->capacidad,
                 ],
             ]),
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

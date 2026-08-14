@@ -34,8 +34,6 @@ class AdminUserApiTest extends TestCase
                         'role',
                         'estado',
                         'must_change_password',
-                        'created_at',
-                        'updated_at',
                     ],
                 ],
                 'pagination' => [
@@ -121,7 +119,8 @@ class AdminUserApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('message', 'Usuario creado correctamente.')
             ->assertJsonPath('user.email', 'nuevo@example.test')
-            ->assertJsonPath('user.estado.id', $active->id)
+            ->assertJsonPath('user.estado.nombre', 'Activo')
+            ->assertJsonMissingPath('user.estado.id')
             ->assertJsonPath('user.must_change_password', true);
 
         $user = User::query()->where('email', 'nuevo@example.test')->firstOrFail();

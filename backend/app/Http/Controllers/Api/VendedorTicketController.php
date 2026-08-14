@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Ticket\StoreTicketRequest;
-use App\Http\Resources\TicketPlantillaResource;
 use App\Http\Resources\TicketResource;
 use App\Http\Resources\TipoEnvioResource;
 use App\Http\Resources\VentaHorarioResource;
@@ -261,7 +260,6 @@ class VendedorTicketController extends Controller
             ->map(fn (Ticket $ticket): Ticket => $ticketRenderService->render($ticket))
             ->values();
 
-        $eventPaths = [];
         $isDigital = (bool) $generatedTickets->first()?->tipoEnvio?->isDigital();
 
         if ($isDigital) {
@@ -282,7 +280,7 @@ class VendedorTicketController extends Controller
                 return $this->missingProcessingStatusResponse(ProcesamientoEstado::FAILED);
             }
 
-            $eventPaths = $this->publishDigitalProcessingEvents(
+            $this->publishDigitalProcessingEvents(
                 $generatedTickets,
                 $ticketProcessingEventService,
                 $pendingProcessingStatus,
@@ -293,15 +291,6 @@ class VendedorTicketController extends Controller
 
         return response()->json([
             'message' => 'Tickets generados correctamente.',
-            'tipo_envio' => [
-                'id' => $generatedTickets->first()?->tipoEnvio?->id,
-                'nombre' => $generatedTickets->first()?->tipoEnvio?->nombre,
-                'descripcion' => $generatedTickets->first()?->tipoEnvio?->descripcion,
-            ],
-            'procesamiento' => $isDigital ? 'pendiente' : null,
-            'venta_horario' => new VentaHorarioResource($result['venta_horario']),
-            'tickets' => TicketResource::collection($generatedTickets),
-            'event_paths' => $eventPaths,
             'impresion' => $isDigital ? null : [
                 'tickets' => $generatedTickets->map(fn (Ticket $ticket): array => $this->printableTicketData($ticket))->values(),
             ],
@@ -420,7 +409,6 @@ class VendedorTicketController extends Controller
 
         return response()->json([
             'message' => 'Procesamiento del ticket reintentado correctamente.',
-            'processing_event_path' => $eventPath,
             'ticket' => new TicketResource($ticket->fresh($this->ticketRelations())),
         ]);
     }
@@ -434,10 +422,8 @@ class VendedorTicketController extends Controller
         }
 
         return response()->json([
-            'ticket' => new TicketResource($ticket),
             'image_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
             'print_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
-            'printable_data' => $this->printableTicketData($ticket),
         ]);
     }
 
@@ -500,9 +486,7 @@ class VendedorTicketController extends Controller
         TicketProcessingEventService $ticketProcessingEventService,
         ProcesamientoEstado $pendingProcessingStatus,
         ProcesamientoEstado $failedProcessingStatus,
-    ): array {
-        $eventPaths = [];
-
+    ): void {
         foreach ($tickets as $ticket) {
             try {
                 $eventPath = $ticketProcessingEventService->publish($ticket);
@@ -513,7 +497,6 @@ class VendedorTicketController extends Controller
                     'processing_event_path' => $eventPath,
                 ])->save();
 
-                $eventPaths[$ticket->codigo_ticket] = $eventPath;
             } catch (Throwable $exception) {
                 // La venta ya fue confirmada; el procesamiento digital queda reintentable por ticket.
                 $ticket->forceFill([
@@ -524,7 +507,6 @@ class VendedorTicketController extends Controller
             }
         }
 
-        return $eventPaths;
     }
 
     private function findSellerTicket(int $id, Request $request): Ticket|JsonResponse
@@ -601,35 +583,11 @@ class VendedorTicketController extends Controller
     {
         $ticket->loadMissing($this->ticketRelations());
 
-        $ventaHorario = $ticket->ventaHorario;
-        $horario = $ventaHorario?->horario;
-        $ruta = $horario?->ruta;
-        $operador = $horario?->operador;
-
         return [
             'id' => $ticket->id,
             'codigo_ticket' => $ticket->codigo_ticket,
-            'ruta' => [
-                'id' => $ruta?->id,
-                'ruta' => $ruta?->ruta,
-                'denominacion' => $ruta?->denominacion,
-                'tarifa' => $ruta?->tarifa,
-            ],
-            'operador' => [
-                'id' => $operador?->id,
-                'nombre_comercial' => $operador?->nombre_comercial,
-            ],
-            'fecha_operacion' => $ventaHorario?->fecha_operacion?->toDateString(),
-            'hora_salida' => $horario?->hora_salida,
-            'asiento' => $ticket->numero_asiento,
-            'es_sobreventa' => (bool) $ticket->es_sobreventa,
-            'qr_path' => $ticket->qr_path,
-            'ticket_image_path' => $ticket->ticket_image_path,
             'image_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
             'print_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
-            'ticket_plantilla' => $ticket->ticketPlantilla
-                ? (new TicketPlantillaResource($ticket->ticketPlantilla))->resolve(request())
-                : null,
         ];
     }
 
