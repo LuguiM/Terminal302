@@ -81,8 +81,6 @@ class BusApiTest extends TestCase
                         'capacidad',
                         'tipo_bus',
                         'estado',
-                        'created_at',
-                        'updated_at',
                     ],
                 ],
                 'pagination' => [

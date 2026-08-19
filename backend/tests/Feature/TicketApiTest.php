@@ -74,29 +74,17 @@ class TicketApiTest extends TestCase
                     [
                         'id',
                         'codigo_ticket',
-                        'venta_horario_id',
-                        'vendedor',
                         'correo_destino',
                         'telefono_destino',
                         'numero_asiento',
                         'es_sobreventa',
-                        'tipo_envio_id',
                         'tipo_envio',
                         'estado',
-                        'qr_path',
-                        'ticket_image_path',
                         'image_url',
                         'print_url',
-                        'ticket_plantilla_id',
-                        'procesamiento_estado_id',
                         'procesamiento_estado',
-                        'processing_error',
-                        'processed_at',
-                        'processing_event_path',
-                        'ticket_plantilla',
                         'venta_horario',
                         'created_at',
-                        'updated_at',
                     ],
                 ],
                 'pagination' => [
@@ -148,7 +136,6 @@ class TicketApiTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('message', 'Tickets generados correctamente.')
-            ->assertJsonPath('tipo_envio.nombre', 'impreso')
             ->assertJsonPath('resumen.cantidad_solicitada', 2)
             ->assertJsonPath('resumen.cantidad_generada', 2)
             ->assertJsonPath('resumen.tickets_normales', 2)
@@ -156,41 +143,25 @@ class TicketApiTest extends TestCase
             ->assertJsonPath('resumen.total_tickets_vendidos', 2)
             ->assertJsonPath('resumen.total_tickets_sobreventa', 0)
             ->assertJsonPath('resumen.venta_cerrada', false)
-            ->assertJsonPath('tickets.0.estado.nombre', 'Emitido')
-            ->assertJsonPath('tickets.0.numero_asiento', 1)
-            ->assertJsonPath('tickets.1.numero_asiento', 2)
-            ->assertJsonPath('tickets.0.ticket_plantilla_id', $plantilla->id)
-            ->assertJsonPath('tickets.0.procesamiento_estado_id', null)
-            ->assertJsonPath('tickets.0.procesamiento_estado', null)
-            ->assertJsonPath('impresion.tickets.0.ticket_plantilla.id', $plantilla->id)
-            ->assertJsonPath('impresion.tickets.0.asiento', 1)
+            ->assertJsonMissingPath('tickets')
+            ->assertJsonMissingPath('event_paths')
             ->assertJsonStructure([
                 'impresion' => [
                     'tickets' => [
                         [
-                            'qr_path',
-                            'ticket_image_path',
+                            'id',
+                            'codigo_ticket',
                             'image_url',
                             'print_url',
-                            'ticket_plantilla' => [
-                                'id',
-                                'image_url',
-                                'codigo_ticket_location',
-                                'ruta_location',
-                                'salida_location',
-                                'operador_location',
-                            ],
                         ],
                     ],
                 ],
             ]);
 
-        $this->assertNotNull($response->json('tickets.0.qr_path'));
-        $this->assertNotNull($response->json('tickets.0.ticket_image_path'));
-        $this->assertNotNull($response->json('tickets.0.image_url'));
-        $this->assertNotNull($response->json('tickets.0.print_url'));
-        Storage::disk(config('filesystems.default'))->assertExists($response->json('tickets.0.qr_path'));
-        Storage::disk(config('filesystems.default'))->assertExists($response->json('tickets.0.ticket_image_path'));
+        $storedTicket = Ticket::query()->firstOrFail();
+        $this->assertNotNull($response->json('impresion.tickets.0.image_url'));
+        Storage::disk(config('filesystems.default'))->assertExists($storedTicket->qr_path);
+        Storage::disk(config('filesystems.default'))->assertExists($storedTicket->ticket_image_path);
 
         $this->assertDatabaseCount('tickets', 2);
         $this->assertDatabaseHas('ventas_horarios', [
@@ -222,19 +193,14 @@ class TicketApiTest extends TestCase
             'telefono_destino' => '77777777',
         ])
             ->assertCreated()
-            ->assertJsonPath('tickets.0.correo_destino', 'cliente@example.test')
-            ->assertJsonPath('tickets.0.telefono_destino', '77777777')
-            ->assertJsonPath('tickets.0.procesamiento_estado_id', $pending->id)
-            ->assertJsonPath('tickets.0.procesamiento_estado.nombre', ProcesamientoEstado::PENDING)
-            ->assertJsonPath('procesamiento', 'pendiente')
-            ->assertJsonStructure(['event_paths']);
+            ->assertJsonMissingPath('tickets')
+            ->assertJsonMissingPath('event_paths');
 
         $ticket = Ticket::query()->firstOrFail();
         $expectedPath = "ticket-events/pending/{$ticket->codigo_ticket}.json";
 
         Storage::disk(config('filesystems.default'))->assertExists($expectedPath);
         $this->assertSame($expectedPath, $ticket->fresh()->processing_event_path);
-        $this->assertSame($expectedPath, $response->json("event_paths.{$ticket->codigo_ticket}"));
         $this->assertStringContainsString('cliente@example.test', Storage::disk(config('filesystems.default'))->get($expectedPath));
         $this->assertStringContainsString('77777777', Storage::disk(config('filesystems.default'))->get($expectedPath));
         Mail::assertNothingSent();
@@ -346,9 +312,10 @@ class TicketApiTest extends TestCase
             ->assertJsonPath('resumen.tickets_sobreventa', 2)
             ->assertJsonPath('resumen.total_tickets_vendidos', 4)
             ->assertJsonPath('resumen.total_tickets_sobreventa', 2)
-            ->assertJsonPath('tickets.0.es_sobreventa', false)
-            ->assertJsonPath('tickets.1.es_sobreventa', true)
-            ->assertJsonPath('tickets.2.es_sobreventa', true);
+            ->assertJsonMissingPath('tickets');
+
+        $this->assertSame(1, Ticket::query()->where('es_sobreventa', false)->count());
+        $this->assertSame(2, Ticket::query()->where('es_sobreventa', true)->count());
 
         $this->assertDatabaseHas('ventas_horarios', [
             'id' => $ventaHorario->id,
@@ -410,9 +377,10 @@ class TicketApiTest extends TestCase
         $this->postJson("/api/vendedor/tickets/{$ticket->id}/retry-processing")
             ->assertOk()
             ->assertJsonPath('message', 'Procesamiento del ticket reintentado correctamente.')
-            ->assertJsonPath('ticket.procesamiento_estado_id', $pending->id)
             ->assertJsonPath('ticket.procesamiento_estado.nombre', ProcesamientoEstado::PENDING)
-            ->assertJsonPath('ticket.processing_error', null);
+            ->assertJsonMissingPath('ticket.procesamiento_estado_id')
+            ->assertJsonMissingPath('ticket.processing_error')
+            ->assertJsonMissingPath('processing_event_path');
 
         Storage::disk(config('filesystems.default'))->assertExists("ticket-events/pending/{$ticket->codigo_ticket}.json");
     }
@@ -461,10 +429,9 @@ class TicketApiTest extends TestCase
 
         $this->getJson("/api/vendedor/tickets/{$ticket->id}/print")
             ->assertOk()
-            ->assertJsonPath('ticket.id', $ticket->id)
-            ->assertJsonPath('ticket.procesamiento_estado.nombre', ProcesamientoEstado::FAILED)
-            ->assertJsonPath('printable_data.codigo_ticket', 'TKT-PRINT-DATA')
-            ->assertJsonPath('image_url', Storage::url('tickets/final/TKT-PRINT-DATA.png'));
+            ->assertJsonPath('image_url', Storage::url('tickets/final/TKT-PRINT-DATA.png'))
+            ->assertJsonMissingPath('ticket')
+            ->assertJsonMissingPath('printable_data');
 
         $this->assertSame($failed->id, $ticket->fresh()->procesamiento_estado_id);
     }
@@ -565,6 +532,32 @@ class TicketApiTest extends TestCase
             'total_tickets_vendidos' => 1,
             'venta_cerrada' => false,
         ]);
+    }
+
+    public function test_sale_is_rejected_when_schedule_operator_is_inactive(): void
+    {
+        $this->estado(Estado::DESACTIVADO_ID, 'Desactivado');
+        $vendedor = $this->createUser('vendedor', 'inactive-operator-seller@example.test');
+        $this->createTicketPlantilla();
+        $tipoEnvio = $this->createTipoEnvio(TipoEnvio::IMPRESO);
+        $horario = $this->createHorarioContext();
+        $ventaHorario = $this->createVentaHorario($horario);
+        $horario->operador->forceFill([
+            'estado_id' => Estado::DESACTIVADO_ID,
+            'motivo_desactivacion' => 'Operacion suspendida',
+        ])->save();
+
+        Sanctum::actingAs($vendedor);
+
+        $this->postJson('/api/vendedor/tickets', [
+            'venta_horario_id' => $ventaHorario->id,
+            'cantidad' => 1,
+            'tipo_envio_id' => $tipoEnvio->id,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'El operador del horario esta desactivado.');
+
+        $this->assertDatabaseCount('tickets', 0);
     }
 
     public function test_sale_closes_when_capacity_is_already_reached_and_overbooking_is_disabled(): void

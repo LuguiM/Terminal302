@@ -21,7 +21,6 @@ class UserResource extends JsonResource
                 'nombre' => $this->role?->nombre,
             ],
             'estado' => [
-                'id' => $this->estado?->id,
                 'nombre' => $this->estado?->nombre,
             ],
             'operador' => $this->whenLoaded('operador', fn (): ?array => $this->operador ? [
@@ -37,8 +36,6 @@ class UserResource extends JsonResource
                 ] : null,
             ] : null),
             'must_change_password' => $this->must_change_password,
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

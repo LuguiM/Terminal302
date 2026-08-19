@@ -10,6 +10,15 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  mode: {
+    type: String,
+    default: 'create',
+    validator: (value) => ['create', 'edit'].includes(value),
+  },
+  route: {
+    type: Object,
+    default: null,
+  },
   loading: {
     type: Boolean,
     default: false,
@@ -19,20 +28,36 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'submit', 'cancel'])
 
 const form = reactive({
+  id: null,
   ruta: '',
   denominacion: '',
   tarifa: '',
 })
+
+const isEdit = computed(() => props.mode === 'edit')
+const title = computed(() => (isEdit.value ? 'Editar ruta' : 'Registrar ruta'))
+const acceptText = computed(() => (isEdit.value ? 'Editar' : 'Registrar'))
 
 const maxLength = (limit) => helpers.withParams(
   { type: 'maxLength', max: limit },
   (value) => !helpers.req(value) || value.toString().length <= limit,
 )
 
+const routeCode = helpers.regex(/^\d+(?:-?[A-Z0-9])?$/)
+
+const toTitleCase = (value) => value
+  .trim()
+  .toLocaleLowerCase('es-SV')
+  .replace(/(^|[\s-])\p{L}/gu, (letter) => letter.toLocaleUpperCase('es-SV'))
+
 const rules = computed(() => ({
   ruta: {
     required: helpers.withMessage('El codigo de ruta es requerido.', required),
     maxLength: helpers.withMessage('El codigo de ruta no debe superar 50 caracteres.', maxLength(50)),
+    routeCode: helpers.withMessage(
+      'Use numeros y un sufijo opcional, con guion o sin el (ejemplo: 302-B).',
+      routeCode,
+    ),
   },
   denominacion: {
     required: helpers.withMessage('La denominacion es requerida.', required),
@@ -59,9 +84,18 @@ const dialogModel = computed({
 })
 
 const resetForm = () => {
+  form.id = null
   form.ruta = ''
   form.denominacion = ''
   form.tarifa = ''
+  v$.value.$reset()
+}
+
+const fillForm = () => {
+  form.id = props.route?.id ?? null
+  form.ruta = props.route?.ruta ?? ''
+  form.denominacion = props.route?.denominacion ?? ''
+  form.tarifa = props.route?.tarifa ?? ''
   v$.value.$reset()
 }
 
@@ -73,30 +107,39 @@ const submit = async () => {
   }
 
   emit('submit', {
-    ruta: form.ruta.trim(),
-    denominacion: form.denominacion.trim(),
+    id: form.id,
+    ruta: form.ruta.trim().toLocaleUpperCase('es-SV'),
+    denominacion: toTitleCase(form.denominacion),
     tarifa: Number(form.tarifa),
   })
 }
 
 watch(
-  () => props.modelValue,
-  (isOpen) => {
-    if (isOpen) {
-      resetForm()
+  () => [props.modelValue, props.route, props.mode],
+  ([isOpen]) => {
+    if (!isOpen) {
+      return
     }
+
+    if (isEdit.value) {
+      fillForm()
+      return
+    }
+
+    resetForm()
   },
+  { immediate: true },
 )
 </script>
 
 <template>
   <BaseModal
     v-model="dialogModel"
-    accept-text="Registrar"
+    :accept-text="acceptText"
     cancel-text="Cancelar"
     :loading="loading"
     max-width="600"
-    title="Registrar ruta"
+    :title="title"
     @accept="submit"
     @cancel="$emit('cancel')"
     @close="$emit('cancel')"
@@ -107,12 +150,13 @@ watch(
           Codigo de ruta*
         </div>
         <v-text-field
-          v-model="form.ruta"
+          :model-value="form.ruta"
           density="comfortable"
           :error-messages="v$.ruta.$errors.map((error) => error.$message)"
-          placeholder="Ej: R-001"
+          placeholder="Ej: 302-B"
           variant="outlined"
           @blur="v$.ruta.$touch"
+          @update:model-value="form.ruta = String($event ?? '').toLocaleUpperCase('es-SV')"
         />
       </div>
 

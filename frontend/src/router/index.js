@@ -274,11 +274,39 @@ const routes = [
     ],
   },
   {
+    path: '/acceso-deshabilitado',
+    name: 'operator-access-disabled',
+    component: () => import('@/views/auth/OperatorAccessDisabledView.vue'),
+    meta: {
+      requiresAuth: true,
+      skipMenuPermission: true,
+      isOperatorAccessDisabledRoute: true,
+    },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/views/auth/LoginView.vue'),
     meta: {
       requiresAuth: false,
+    },
+  },
+  {
+    path: '/recuperar-contrasena',
+    name: 'forgot-password',
+    component: () => import('@/views/auth/ForgotPasswordView.vue'),
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
+    },
+  },
+  {
+    path: '/restablecer-contrasena',
+    name: 'reset-password',
+    component: () => import('@/views/auth/ResetPasswordView.vue'),
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
     },
   },
   {
@@ -334,7 +362,23 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (to.name === 'login' && accessToken) {
+  if ((to.name === 'login' || to.meta.guestOnly) && accessToken) {
+    return getAuthenticatedHomeRoute(authStore)
+  }
+
+  if (
+    accessToken
+    && authStore.operatorAccess?.blocked
+    && !to.meta.isOperatorAccessDisabledRoute
+  ) {
+    return { name: 'operator-access-disabled' }
+  }
+
+  if (
+    accessToken
+    && !authStore.operatorAccess?.blocked
+    && to.meta.isOperatorAccessDisabledRoute
+  ) {
     return getAuthenticatedHomeRoute(authStore)
   }
 

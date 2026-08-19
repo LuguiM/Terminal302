@@ -52,12 +52,8 @@ class ValidacionTicketApiTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('message', 'Ticket validado correctamente.')
-            ->assertJsonPath('ticket.id', $ticket->id)
-            ->assertJsonPath('ticket.estado.nombre', 'Validado')
-            ->assertJsonPath('validacion.ticket.codigo_ticket', 'TKT-VALID-001')
-            ->assertJsonPath('validacion.validador.id', $validador->id)
-            ->assertJsonPath('validacion.resultado', 'valido')
-            ->assertJsonPath('validacion.observacion', 'Abordaje confirmado');
+            ->assertJsonMissingPath('ticket')
+            ->assertJsonMissingPath('validacion');
 
         $this->assertDatabaseHas('tickets', [
             'id' => $ticket->id,
@@ -89,9 +85,51 @@ class ValidacionTicketApiTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('message', 'Ticket validado correctamente.')
-            ->assertJsonPath('ticket.id', $ticket->id)
-            ->assertJsonPath('ticket.estado.nombre', 'Validado')
-            ->assertJsonPath('validacion.validador.id', $validador->id);
+            ->assertJsonMissingPath('ticket')
+            ->assertJsonMissingPath('validacion');
+    }
+
+    public function test_validator_is_temporarily_blocked_when_assigned_operator_is_inactive(): void
+    {
+        $this->estado(Estado::DESACTIVADO_ID, 'Desactivado');
+        $empresario = $this->createUser('empresario', 'inactive-owner@example.test');
+        $operador = $this->createOperador($empresario);
+        $operador->forceFill([
+            'estado_id' => Estado::DESACTIVADO_ID,
+            'motivo_desactivacion' => 'Permiso de operacion vencido',
+        ])->save();
+        $validador = $this->createUser('validador', 'blocked-validator@example.test');
+        $empleado = $this->createOperadorEmpleado($operador, $validador);
+
+        $loginResponse = $this->postJson('/api/login', [
+            'email' => $validador->email,
+            'password' => 'Temporal123',
+        ]);
+
+        $loginResponse
+            ->assertOk()
+            ->assertJsonPath('operator_access.blocked', true)
+            ->assertJsonPath('operator_access.reason', 'Permiso de operacion vencido');
+
+        Sanctum::actingAs($validador);
+
+        $this->postJson('/api/validador/tickets/validar', [
+            'codigo_ticket' => 'TKT-BLOCKED',
+        ])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'OPERATOR_DISABLED');
+
+        $this->assertSame(Estado::ACTIVO_ID, $validador->fresh()->estado_id);
+        $this->assertSame(Estado::ACTIVO_ID, $empleado->fresh()->estado_id);
+
+        $operador->forceFill([
+            'estado_id' => Estado::ACTIVO_ID,
+            'motivo_desactivacion' => null,
+        ])->save();
+        $validador->unsetRelation('operadorEmpleado');
+
+        $this->getJson('/api/validador/validaciones')
+            ->assertOk();
     }
 
     public function test_validador_cannot_validate_same_ticket_twice(): void
@@ -206,14 +244,11 @@ class ValidacionTicketApiTest extends TestCase
             ->assertJsonStructure([
                 'validaciones' => [
                     [
-                        'id',
                         'ticket',
                         'validador',
                         'fecha_validacion',
                         'resultado',
                         'observacion',
-                        'created_at',
-                        'updated_at',
                     ],
                 ],
                 'pagination' => [
@@ -224,9 +259,9 @@ class ValidacionTicketApiTest extends TestCase
                 ],
             ])
             ->assertJsonPath('pagination.total', 1)
-            ->assertJsonPath('validaciones.0.id', $validacion->id)
             ->assertJsonPath('validaciones.0.ticket.codigo_ticket', 'TKT-LIST-001')
-            ->assertJsonPath('validaciones.0.validador.id', $validador->id);
+            ->assertJsonPath('validaciones.0.validador.name', $validador->name)
+            ->assertJsonMissingPath('validaciones.0.validador.id');
     }
 
     public function test_validation_request_rejects_forbidden_fields(): void

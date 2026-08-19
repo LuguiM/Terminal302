@@ -34,6 +34,8 @@ class VendedorVentaHorarioController extends Controller
             ->where('estado_id', $activeStatus->id)
             ->whereHas('horarios', fn ($query) => $query
                 ->where('estado_id', $activeStatus->id)
+                ->whereHas('operador', fn ($operatorQuery) => $operatorQuery
+                    ->where('estado_id', $activeStatus->id))
                 ->where('hora_salida', '>=', $now->format('H:i'))
                 ->whereHas('dia', fn ($dayQuery) => $dayQuery->where('orden', $now->dayOfWeekIso)))
             ->orderBy('ruta')
@@ -77,6 +79,7 @@ class VendedorVentaHorarioController extends Controller
             ->with(['ruta', 'operador', 'bus', 'estado'])
             ->where('ruta_id', $ruta->id)
             ->where('estado_id', $activeStatus->id)
+            ->whereHas('operador', fn ($query) => $query->where('estado_id', $activeStatus->id))
             ->where('hora_salida', '>=', $now->format('H:i'))
             ->whereHas('dia', fn ($query) => $query->where('orden', $now->dayOfWeekIso))
             ->orderBy('hora_salida')
@@ -129,6 +132,12 @@ class VendedorVentaHorarioController extends Controller
             return response()->json([
                 'message' => 'La venta de horario ya esta cerrada.',
             ], 409);
+        }
+
+        if ((int) $ventaHorario->horario?->operador?->estado_id !== Estado::ACTIVO_ID) {
+            return response()->json([
+                'message' => 'El operador del horario esta desactivado.',
+            ], 422);
         }
 
         $ventaHorario->forceFill([

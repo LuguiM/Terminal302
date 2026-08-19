@@ -1,7 +1,16 @@
 <script setup>
 import { computed, reactive } from "vue";
 import { useVuelidate } from "@vuelidate/core";
-import { email, helpers, required } from "@vuelidate/validators";
+import { email, helpers, maxLength, required } from "@vuelidate/validators";
+
+import {
+  formatNit,
+  formatPhone,
+  hasRepeatedDigits,
+  hasValidNitCheckDigit,
+  hasValidNitFormat,
+  hasValidPhoneFormat,
+} from "@/utils/salvadoranValidation";
 
 const props = defineProps({
   initialData: {
@@ -18,19 +27,26 @@ const form = reactive({
   correo_administrativo: props.initialData.correo_administrativo ?? "",
 });
 
+const optional = (validator) => (value) => !helpers.req(value) || validator(value);
+
 const rules = computed(() => ({
   nit: {
     required: helpers.withMessage("El NIT es requerido.", required),
     format: helpers.withMessage(
       "El NIT debe tener formato ####-######-###-#.",
-      helpers.regex(/^\d{4}-\d{6}-\d{3}-\d$/),
+      optional(hasValidNitFormat),
     ),
+    repeated: helpers.withMessage("El NIT no puede contener un solo digito repetido.", (value) => !hasRepeatedDigits(value)),
+    checkDigit: helpers.withMessage("El NIT no tiene un digito verificador valido.", optional(hasValidNitCheckDigit)),
   },
   telefono: {
     required: helpers.withMessage("El telefono es requerido.", required),
+    format: helpers.withMessage("El telefono debe tener formato ####-#### y comenzar con 2, 6 o 7.", optional(hasValidPhoneFormat)),
+    repeated: helpers.withMessage("El telefono no puede contener un solo digito repetido.", (value) => !hasRepeatedDigits(value)),
   },
   correo_administrativo: {
     email: helpers.withMessage("Ingrese un correo valido.", email),
+    maxLength: helpers.withMessage("El correo no debe superar 50 caracteres.", maxLength(50)),
   },
 }));
 
@@ -45,7 +61,10 @@ const submitForm = async () => {
     return;
   }
 
-  emit("submit", { ...form });
+  emit("submit", {
+    ...form,
+    correo_administrativo: form.correo_administrativo.trim(),
+  });
 };
 </script>
 
@@ -65,9 +84,12 @@ const submitForm = async () => {
       density="comfortable"
       :error-messages="v$.nit.$errors.map((error) => error.$message)"
       hide-details="auto"
-      placeholder="1234-567890-123-4"
+      inputmode="numeric"
+      maxlength="17"
+      placeholder="xxxx-xxxxxx-xxx-x"
       rounded="lg"
       variant="outlined"
+      @update:model-value="form.nit = formatNit($event)"
       @blur="v$.nit.$touch"
     />
 
@@ -85,9 +107,12 @@ const submitForm = async () => {
       density="comfortable"
       :error-messages="v$.telefono.$errors.map((error) => error.$message)"
       hide-details="auto"
-      placeholder="1234-5678 o +503 2345-6789"
+      inputmode="numeric"
+      maxlength="9"
+      placeholder="xxxx-xxxx"
       rounded="lg"
       variant="outlined"
+      @update:model-value="form.telefono = formatPhone($event)"
       @blur="v$.telefono.$touch"
     />
 
@@ -107,6 +132,7 @@ const submitForm = async () => {
         v$.correo_administrativo.$errors.map((error) => error.$message)
       "
       hide-details="auto"
+      maxlength="50"
       placeholder="example@example.com"
       rounded="lg"
       variant="outlined"

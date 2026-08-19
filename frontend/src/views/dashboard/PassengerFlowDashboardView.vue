@@ -11,9 +11,10 @@ import {
   Tooltip,
 } from 'chart.js'
 import { Bar, Line } from 'vue-chartjs'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, shallowRef } from 'vue'
 
 import PageTitle from '@/components/common/PageTitle.vue'
+import MonthInput from '@/components/common/MonthInput.vue'
 import { getAdminOperators } from '@/services/adminOperatorService'
 import { getAdminScheduleRoutes } from '@/services/adminScheduleService'
 import {
@@ -23,6 +24,7 @@ import {
 import { getOperatorBuses } from '@/services/operatorBusService'
 import { getOperatorScheduleRoutes } from '@/services/operatorScheduleService'
 import { useAuthStore } from '@/stores/authStore'
+import { formatDisplayDate, toApiDate } from '@/utils/date'
 
 ChartJS.register(
   Title,
@@ -49,9 +51,9 @@ const filtersLoading = ref(false)
 const error = ref('')
 const dashboard = ref(null)
 const filterMode = ref('fecha')
-const singleDate = ref(formatInputDate(new Date()))
-const startDate = ref(formatInputDate(new Date()))
-const endDate = ref(formatInputDate(new Date()))
+const singleDate = shallowRef(new Date())
+const startDate = shallowRef(new Date())
+const endDate = shallowRef(new Date())
 const month = ref(formatInputMonth(new Date()))
 const routeId = ref(null)
 const operatorId = ref(null)
@@ -119,6 +121,18 @@ const busOptions = computed(() =>
 const summary = computed(() => dashboard.value?.resumen ?? {})
 const dailySeries = computed(() => dashboard.value?.series?.por_dia ?? [])
 const rankings = computed(() => dashboard.value?.rankings ?? {})
+const hasDailySeries = computed(() =>
+  dailySeries.value.some((item) =>
+    Number(item.tickets_vendidos ?? 0) > 0
+    || Number(item.tickets_validados ?? 0) > 0,
+  ),
+)
+const hasRouteRankings = computed(() =>
+  (rankings.value.rutas ?? []).some((item) =>
+    Number(item.tickets_vendidos ?? 0) > 0
+    || Number(item.tickets_validados ?? 0) > 0,
+  ),
+)
 
 const scheduleHeaders = [
   { title: 'Ruta', key: 'ruta' },
@@ -285,12 +299,12 @@ function buildParams() {
   }
 
   if (filterMode.value === 'fecha') {
-    params.fecha = singleDate.value || undefined
+    params.fecha = toApiDate(singleDate.value)
   }
 
   if (filterMode.value === 'rango') {
-    params.fecha_desde = startDate.value || undefined
-    params.fecha_hasta = endDate.value || undefined
+    params.fecha_desde = toApiDate(startDate.value)
+    params.fecha_hasta = toApiDate(endDate.value)
   }
 
   if (filterMode.value === 'mes') {
@@ -361,9 +375,9 @@ async function fetchDashboard() {
 
 function clearFilters() {
   filterMode.value = 'fecha'
-  singleDate.value = formatInputDate(new Date())
-  startDate.value = formatInputDate(new Date())
-  endDate.value = formatInputDate(new Date())
+  singleDate.value = null
+  startDate.value = new Date()
+  endDate.value = new Date()
   month.value = formatInputMonth(new Date())
   routeId.value = null
   operatorId.value = null
@@ -425,35 +439,38 @@ onMounted(async () => {
               sm="6"
               md="2"
             >
-              <v-text-field
+              <v-date-input
                 v-model="singleDate"
                 density="comfortable"
+                :display-format="formatDisplayDate"
                 hide-details
+                prepend-icon=""
                 label="Fecha"
-                type="date"
                 variant="outlined"
               />
             </v-col>
 
             <template v-if="filterMode === 'rango'">
               <v-col cols="12" sm="6" md="2">
-                <v-text-field
+                <v-date-input
                   v-model="startDate"
                   density="comfortable"
+                  :display-format="formatDisplayDate"
                   hide-details
+                  prepend-icon=""
                   label="Desde"
-                  type="date"
                   variant="outlined"
                 />
               </v-col>
 
               <v-col cols="12" sm="6" md="2">
-                <v-text-field
+                <v-date-input
                   v-model="endDate"
                   density="comfortable"
+                  :display-format="formatDisplayDate"
                   hide-details
+                  prepend-icon=""
                   label="Hasta"
-                  type="date"
                   variant="outlined"
                 />
               </v-col>
@@ -465,12 +482,11 @@ onMounted(async () => {
               sm="6"
               md="2"
             >
-              <v-text-field
+              <MonthInput
                 v-model="month"
                 density="comfortable"
                 hide-details
                 label="Mes"
-                type="month"
                 variant="outlined"
               />
             </v-col>
@@ -579,7 +595,7 @@ onMounted(async () => {
               <v-icon
                 color="blueLigth"
                 :icon="kpi.icon"
-                size="28"
+                size="25"
               />
               <div>
                 <div class="text-secondary text-subtitle-2 font-weight-bold">
@@ -614,11 +630,48 @@ onMounted(async () => {
               Vendidos vs validados
             </v-card-title>
             <v-card-text class="dashboard-chart-body">
+              <div
+                v-if="loading"
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-progress-circular
+                  color="primary"
+                  indeterminate
+                  size="40"
+                />
+                <span>Cargando datos...</span>
+              </div>
+              <div
+                v-else-if="error"
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-icon
+                  color="error"
+                  icon="mdi-alert-circle-outline"
+                  size="40"
+                />
+                <span>No se pudo cargar la información.</span>
+              </div>
               <Line
+                v-else-if="hasDailySeries"
                 aria-label="Gráfica de tickets vendidos y validados por día"
                 :data="lineChartData"
                 :options="chartOptions"
               />
+              <div
+                v-else
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-icon
+                  color="secondary"
+                  icon="mdi-chart-line-variant"
+                  size="48"
+                />
+                <span>Sin datos para mostrar.</span>
+              </div>
             </v-card-text>
           </v-card>
         </v-col>
@@ -632,11 +685,48 @@ onMounted(async () => {
               Rutas con mayor flujo
             </v-card-title>
             <v-card-text class="dashboard-chart-body">
+              <div
+                v-if="loading"
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-progress-circular
+                  color="primary"
+                  indeterminate
+                  size="40"
+                />
+                <span>Cargando datos...</span>
+              </div>
+              <div
+                v-else-if="error"
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-icon
+                  color="error"
+                  icon="mdi-alert-circle-outline"
+                  size="40"
+                />
+                <span>No se pudo cargar la información.</span>
+              </div>
               <Bar
+                v-else-if="hasRouteRankings"
                 aria-label="Gráfica de rutas con más tickets vendidos y validados"
                 :data="barChartData"
                 :options="chartOptions"
               />
+              <div
+                v-else
+                class="dashboard-chart-state"
+                role="status"
+              >
+                <v-icon
+                  color="secondary"
+                  icon="mdi-chart-bar"
+                  size="48"
+                />
+                <span>Sin datos para mostrar.</span>
+              </div>
             </v-card-text>
           </v-card>
         </v-col>
@@ -709,5 +799,17 @@ onMounted(async () => {
 <style scoped>
 .dashboard-chart-body {
   height: 320px;
+}
+
+.dashboard-chart-state {
+  align-items: center;
+  color: rgb(var(--v-theme-secondary));
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  gap: 12px;
+  height: 100%;
+  justify-content: center;
+  text-align: center;
 }
 </style>

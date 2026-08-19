@@ -29,11 +29,8 @@ class BusResource extends JsonResource
                 'nombre' => $this->tipoBus?->nombre,
             ],
             'estado' => [
-                'id' => $this->estado?->id,
                 'nombre' => $this->estado?->nombre,
             ],
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

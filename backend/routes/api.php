@@ -25,6 +25,8 @@ use App\Http\Controllers\Api\VendedorVentaHorarioController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 Route::prefix('public')->group(function (): void {
     Route::get('/rutas', [PublicRutaController::class, 'index']);
@@ -87,7 +89,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/tickets/{id}/print', [VendedorTicketController::class, 'print']);
         });
 
-    Route::middleware(['password.changed', 'role:validador'])
+    Route::middleware(['password.changed', 'role:validador', 'operator.active'])
         ->prefix('validador')
         ->group(function (): void {
             Route::post('/tickets/validar', [ValidadorTicketController::class, 'validar']);

@@ -176,6 +176,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
+  /forgot-password:
+    post:
+      tags:
+        - Autenticacion
+      summary: Solicitar recuperacion de contrasena
+      description: Envia un enlace temporal si el correo esta registrado. La respuesta no revela si la cuenta existe.
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Solicitud procesada con respuesta generica.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: El correo no tiene un formato valido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /reset-password:
+    post:
+      tags:
+        - Autenticacion
+      summary: Restablecer contrasena
+      description: Cambia la contrasena mediante un token temporal de un solo uso y revoca las sesiones existentes.
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Contrasena restablecida correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Datos invalidos o enlace vencido, invalido o utilizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
   /logout:
     post:
       tags:
@@ -2383,6 +2437,40 @@ components:
           type: string
           format: password
           example: TEMPORAL
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: usuario@example.com
+    ResetPasswordRequest:
+      type: object
+      required:
+        - email
+        - token
+        - password
+        - password_confirmation
+      properties:
+        email:
+          type: string
+          format: email
+          example: usuario@example.com
+        token:
+          type: string
+          description: Token recibido por correo, valido durante 60 minutos y de un solo uso.
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Debe contener mayuscula, minuscula, numero y simbolo.
+          example: NuevaClave1!
+        password_confirmation:
+          type: string
+          format: password
+          example: NuevaClave1!
     ChangeInitialPasswordRequest:
       type: object
       required:

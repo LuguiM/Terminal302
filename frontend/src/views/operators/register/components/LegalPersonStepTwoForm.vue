@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive } from "vue";
 import { useVuelidate } from "@vuelidate/core";
-import { helpers, required } from "@vuelidate/validators";
+import { helpers, maxLength, required } from "@vuelidate/validators";
 
 defineProps({
   loading: {
@@ -22,20 +22,25 @@ const form = reactive({
 const rules = computed(() => ({
   razon_social: {
     required: helpers.withMessage("La razon social es requerida.", required),
+    maxLength: helpers.withMessage("La razon social no debe superar 100 caracteres.", maxLength(100)),
   },
   representante_legal: {
     required: helpers.withMessage(
       "El representante legal es requerido.",
       required,
     ),
+    maxLength: helpers.withMessage("El representante legal no debe superar 100 caracteres.", maxLength(100)),
   },
   nombre_comercial: {
     required: helpers.withMessage(
       "El nombre comercial es requerido.",
       required,
     ),
+    maxLength: helpers.withMessage("El nombre comercial no debe superar 100 caracteres.", maxLength(100)),
   },
-  direccion: {},
+  direccion: {
+    maxLength: helpers.withMessage("La direccion no debe superar 100 caracteres.", maxLength(100)),
+  },
 }));
 
 const v$ = useVuelidate(rules, form, {
@@ -49,7 +54,9 @@ const submitForm = async () => {
     return;
   }
 
-  emit("submit", { ...form });
+  emit("submit", Object.fromEntries(
+    Object.entries(form).map(([key, value]) => [key, value.trim()]),
+  ));
 };
 </script>
 
@@ -69,6 +76,7 @@ const submitForm = async () => {
       density="comfortable"
       :error-messages="v$.razon_social.$errors.map((error) => error.$message)"
       hide-details="auto"
+      maxlength="100"
       placeholder="Nombre de la empresa"
       rounded="lg"
       variant="outlined"
@@ -91,6 +99,7 @@ const submitForm = async () => {
         v$.representante_legal.$errors.map((error) => error.$message)
       "
       hide-details="auto"
+      maxlength="100"
       placeholder="Nombre del representante"
       rounded="lg"
       variant="outlined"
@@ -113,6 +122,7 @@ const submitForm = async () => {
         v$.nombre_comercial.$errors.map((error) => error.$message)
       "
       hide-details="auto"
+      maxlength="100"
       placeholder="Nombre comercial"
       rounded="lg"
       variant="outlined"
@@ -132,8 +142,11 @@ const submitForm = async () => {
       class="mb-8"
       density="comfortable"
       hide-details="auto"
+      :error-messages="v$.direccion.$errors.map((error) => error.$message)"
+      maxlength="100"
       rounded="lg"
       variant="outlined"
+      @blur="v$.direccion.$touch"
     />
 
     <div class="d-flex flex-column flex-sm-row justify-center ga-3">

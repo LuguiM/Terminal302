@@ -109,6 +109,46 @@ class VentaHorarioApiTest extends TestCase
             ->assertJsonPath('proximo_a_salir', null);
     }
 
+    public function test_seller_remains_active_but_cannot_use_inactive_operator_schedules(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-06-29 10:00:00', 'America/El_Salvador'));
+        $this->estado(Estado::DESACTIVADO_ID, 'Desactivado');
+
+        $vendedor = $this->createUser('vendedor', 'independent-seller@example.test');
+        [$ruta, $operador, $bus, $dia] = $this->createSchedulableContext();
+        $horario = $this->createHorario($ruta, $operador, $bus, $dia, '10:30');
+        $ventaHorario = $this->createVentaHorario($horario, '2026-06-29');
+        $operador->forceFill([
+            'estado_id' => Estado::DESACTIVADO_ID,
+            'motivo_desactivacion' => 'Operacion suspendida',
+        ])->save();
+
+        $this->postJson('/api/login', [
+            'email' => $vendedor->email,
+            'password' => 'Temporal123',
+        ])
+            ->assertOk()
+            ->assertJsonPath('operator_access.blocked', false);
+
+        Sanctum::actingAs($vendedor);
+
+        $this->getJson('/api/vendedor/rutas-disponibles')
+            ->assertOk()
+            ->assertJsonCount(0, 'rutas');
+
+        $this->getJson("/api/vendedor/rutas/{$ruta->id}/horarios-disponibles")
+            ->assertNotFound();
+
+        $this->patchJson("/api/vendedor/ventas-horarios/{$ventaHorario->id}/cerrar", [
+            'motivo_cierre' => 'Cierre forzado',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'El operador del horario esta desactivado.');
+
+        $this->assertFalse((bool) $ventaHorario->fresh()->venta_cerrada);
+        $this->assertSame(Estado::ACTIVO_ID, $horario->fresh()->estado_id);
+    }
+
     public function test_expired_sale_schedule_is_closed_and_hidden_from_available_schedules(): void
     {
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-06-29 10:00:00', 'America/El_Salvador'));
@@ -152,7 +192,8 @@ class VentaHorarioApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('message', 'Venta de horario cerrada correctamente.')
             ->assertJsonPath('venta_horario.venta_cerrada', true)
-            ->assertJsonPath('venta_horario.cerrada_por.id', $vendedor->id)
+            ->assertJsonPath('venta_horario.cerrada_por.name', $vendedor->name)
+            ->assertJsonMissingPath('venta_horario.cerrada_por.id')
             ->assertJsonPath('venta_horario.motivo_cierre', 'Unidad completa');
 
         $this->assertDatabaseHas('ventas_horarios', [

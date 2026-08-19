@@ -9,7 +9,7 @@ use App\Http\Requests\Horario\StoreHorarioRequest;
 use App\Http\Requests\Horario\UpdateHorarioRequest;
 use App\Http\Resources\BusResource;
 use App\Http\Resources\HorarioResource;
-use App\Http\Resources\OperadorResource;
+use App\Http\Resources\OperadorSelectorResource;
 use App\Http\Resources\RutaResource;
 use App\Models\Bus;
 use App\Models\Dia;
@@ -113,7 +113,6 @@ class AdminHorarioController extends Controller
         }
 
         $operadores = Operador::query()
-            ->with(['user', 'tipoOperador', 'estado'])
             ->where('estado_id', $activeStatus->id)
             ->whereHas('operadorRutas', function ($query) use ($ruta, $activeStatus): void {
                 $query->where('ruta_id', $ruta->id)
@@ -123,7 +122,7 @@ class AdminHorarioController extends Controller
             ->get();
 
         return response()->json([
-            'operadores' => OperadorResource::collection($operadores),
+            'operadores' => OperadorSelectorResource::collection($operadores),
         ]);
     }
 

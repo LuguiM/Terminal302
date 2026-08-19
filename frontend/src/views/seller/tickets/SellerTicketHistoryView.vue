@@ -8,6 +8,7 @@ import {
   getSellerSalesHistory,
   getSellerTipoEnvios,
 } from '@/services/sellerTicketService'
+import { formatDisplayDate, toApiDate } from '@/utils/date'
 
 const tickets = ref([])
 const tipoEnvios = ref([])
@@ -119,7 +120,7 @@ const fetchHistory = async () => {
       per_page: perPage.value,
       codigo_ticket: search.value || undefined,
       tipo_envio_id: tipoEnvioId.value || undefined,
-      fecha: saleDate.value || undefined,
+      fecha: toApiDate(saleDate.value),
     })
 
     tickets.value = data.tickets ?? []
@@ -201,12 +202,13 @@ onMounted(() => {
       </v-col>
 
       <v-col cols="12" sm="6" md="2">
-        <v-text-field
+        <v-date-input
           v-model="saleDate"
           density="comfortable"
+          :display-format="formatDisplayDate"
           hide-details
           label="Fecha"
-          type="date"
+          prepend-icon=""
           variant="outlined"
         />
       </v-col>

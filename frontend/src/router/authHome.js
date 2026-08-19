@@ -10,7 +10,12 @@ export const getAuthenticatedHomeRoute = ({
   user,
   mustChangePassword = false,
   requiresOperatorRegistration = false,
+  operatorAccess = { blocked: false },
 } = {}) => {
+  if (operatorAccess?.blocked) {
+    return { name: 'operator-access-disabled' }
+  }
+
   if (mustChangePassword) {
     return { name: 'change-password' }
   }
