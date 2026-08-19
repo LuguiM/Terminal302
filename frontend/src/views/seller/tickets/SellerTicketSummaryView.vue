@@ -359,7 +359,7 @@ onMounted(fetchContext)
               variant="flat"
               @click="showDigitalModal = true"
             >
-              Enviar digital
+              Enviar por correo
             </v-btn>
 
             <v-btn

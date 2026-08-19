@@ -20,7 +20,6 @@ const emit = defineEmits(['update:modelValue', 'submit'])
 
 const form = reactive({
   correo_destino: '',
-  telefono_destino: '',
 })
 
 const rules = computed(() => ({
@@ -28,7 +27,6 @@ const rules = computed(() => ({
     required: helpers.withMessage('El correo es obligatorio.', required),
     email: helpers.withMessage('Ingrese un correo valido.', email),
   },
-  telefono_destino: {},
 }))
 
 const v$ = useVuelidate(rules, form)
@@ -38,7 +36,6 @@ watch(
   (isOpen) => {
     if (!isOpen) {
       form.correo_destino = ''
-      form.telefono_destino = ''
       v$.value.$reset()
     }
   },
@@ -53,7 +50,6 @@ const handleSubmit = async () => {
 
   emit('submit', {
     correo_destino: form.correo_destino,
-    telefono_destino: form.telefono_destino || null,
   })
 }
 </script>
@@ -62,7 +58,7 @@ const handleSubmit = async () => {
   <BaseModal
     :loading="loading"
     :model-value="modelValue"
-    title="Envio de ticket digital"
+    title="Envio de ticket por correo"
     accept-text="Enviar"
     @accept="handleSubmit"
     @update:model-value="$emit('update:modelValue', $event)"
@@ -77,14 +73,6 @@ const handleSubmit = async () => {
         type="email"
         variant="outlined"
         @blur="v$.correo_destino.$touch"
-      />
-
-      <v-text-field
-        v-model="form.telefono_destino"
-        density="comfortable"
-        label="Telefono (Opcional)"
-        placeholder="+503 1234-5678"
-        variant="outlined"
       />
     </v-form>
   </BaseModal>
