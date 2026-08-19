@@ -534,6 +534,32 @@ class TicketApiTest extends TestCase
         ]);
     }
 
+    public function test_sale_is_rejected_when_schedule_operator_is_inactive(): void
+    {
+        $this->estado(Estado::DESACTIVADO_ID, 'Desactivado');
+        $vendedor = $this->createUser('vendedor', 'inactive-operator-seller@example.test');
+        $this->createTicketPlantilla();
+        $tipoEnvio = $this->createTipoEnvio(TipoEnvio::IMPRESO);
+        $horario = $this->createHorarioContext();
+        $ventaHorario = $this->createVentaHorario($horario);
+        $horario->operador->forceFill([
+            'estado_id' => Estado::DESACTIVADO_ID,
+            'motivo_desactivacion' => 'Operacion suspendida',
+        ])->save();
+
+        Sanctum::actingAs($vendedor);
+
+        $this->postJson('/api/vendedor/tickets', [
+            'venta_horario_id' => $ventaHorario->id,
+            'cantidad' => 1,
+            'tipo_envio_id' => $tipoEnvio->id,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'El operador del horario esta desactivado.');
+
+        $this->assertDatabaseCount('tickets', 0);
+    }
+
     public function test_sale_closes_when_capacity_is_already_reached_and_overbooking_is_disabled(): void
     {
         $vendedor = $this->createUser('vendedor', 'vendedor@example.test');

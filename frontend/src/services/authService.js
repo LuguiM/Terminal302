@@ -9,3 +9,5 @@ export const resetPassword = (payload) => api.post('/reset-password', payload)
 export const changeInitialPassword = (payload) => api.post('/change-initial-password', payload)
 
 export const logout = (config = {}) => api.post('/logout', null, config)
+
+export const getCurrentUser = (config = {}) => api.get('/user', config)

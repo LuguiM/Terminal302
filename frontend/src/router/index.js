@@ -274,6 +274,16 @@ const routes = [
     ],
   },
   {
+    path: '/acceso-deshabilitado',
+    name: 'operator-access-disabled',
+    component: () => import('@/views/auth/OperatorAccessDisabledView.vue'),
+    meta: {
+      requiresAuth: true,
+      skipMenuPermission: true,
+      isOperatorAccessDisabledRoute: true,
+    },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/views/auth/LoginView.vue'),
@@ -353,6 +363,22 @@ router.beforeEach(async (to) => {
   }
 
   if ((to.name === 'login' || to.meta.guestOnly) && accessToken) {
+    return getAuthenticatedHomeRoute(authStore)
+  }
+
+  if (
+    accessToken
+    && authStore.operatorAccess?.blocked
+    && !to.meta.isOperatorAccessDisabledRoute
+  ) {
+    return { name: 'operator-access-disabled' }
+  }
+
+  if (
+    accessToken
+    && !authStore.operatorAccess?.blocked
+    && to.meta.isOperatorAccessDisabledRoute
+  ) {
     return getAuthenticatedHomeRoute(authStore)
   }
 

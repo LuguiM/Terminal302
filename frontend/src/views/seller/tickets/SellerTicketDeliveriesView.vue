@@ -34,7 +34,6 @@ const statusOptions = [
 const headers = [
   { title: 'Codigo', key: 'codigo_ticket', sortable: false },
   { title: 'Correo', key: 'correo_destino', sortable: false },
-  { title: 'Telefono', key: 'telefono_destino', sortable: false },
   { title: 'Estado', key: 'procesamiento', sortable: false, align: 'center' },
   { title: 'Fecha', key: 'created_at', sortable: false },
   { title: 'Acciones', key: 'actions', sortable: false, align: 'center' },

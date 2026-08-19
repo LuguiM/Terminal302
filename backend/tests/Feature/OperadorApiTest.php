@@ -259,13 +259,17 @@ class OperadorApiTest extends TestCase
             'password' => 'Temporal123',
         ])
             ->assertOk()
-            ->assertJsonPath('user.email', $empresario->email);
+            ->assertJsonPath('user.email', $empresario->email)
+            ->assertJsonPath('operator_access.blocked', true)
+            ->assertJsonPath('operator_access.reason', 'Documentacion vencida');
 
         Sanctum::actingAs($empresario);
 
         $this->getJson('/api/operador/me')
             ->assertForbidden()
-            ->assertJsonPath('message', 'El operador esta desactivado. No puede realizar acciones operativas.');
+            ->assertJsonPath('message', 'El operador esta desactivado. No puede realizar acciones operativas.')
+            ->assertJsonPath('code', 'OPERATOR_DISABLED')
+            ->assertJsonPath('reason', 'Documentacion vencida');
     }
 
     public function test_admin_reactivates_operator_and_clears_deactivation_reason(): void

@@ -57,6 +57,17 @@ api.interceptors.response.use(
   (error) => {
     finishGlobalLoader(error.config)
 
+    if (error.response?.data?.code === 'OPERATOR_DISABLED') {
+      localStorage.setItem('operator_access', JSON.stringify({
+        blocked: true,
+        reason: error.response.data.reason || null,
+      }))
+
+      if (window.location.pathname !== '/acceso-deshabilitado') {
+        window.location.assign('/acceso-deshabilitado')
+      }
+    }
+
     if (!error.config?.suppressToast) {
       const message = getErrorMessage(error)
 

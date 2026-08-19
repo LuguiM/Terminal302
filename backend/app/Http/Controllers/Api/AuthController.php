@@ -10,6 +10,7 @@ use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\Estado;
 use App\Models\User;
+use App\Services\OperatorAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -54,7 +55,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function login(LoginRequest $request): JsonResponse
+    public function login(LoginRequest $request, OperatorAccessService $operatorAccessService): JsonResponse
     {
         $user = User::query()
             ->with(['role', 'estado', 'operador', 'operadorEmpleado.operador'])
@@ -79,6 +80,7 @@ class AuthController extends Controller
             'token_type' => 'Bearer',
             'access_token' => $token,
             'requires_operator_registration' => $this->requiresOperatorRegistration($user),
+            'operator_access' => $operatorAccessService->forUser($user),
             'user' => new UserResource($user),
         ]);
     }
@@ -92,14 +94,18 @@ class AuthController extends Controller
         ]);
     }
 
-    public function user(Request $request): UserResource
+    public function user(Request $request, OperatorAccessService $operatorAccessService): UserResource
     {
-        return new UserResource($request->user()->load([
+        $user = $request->user()->load([
             'role',
             'estado',
             'operador',
             'operadorEmpleado.operador',
-        ]));
+        ]);
+
+        return (new UserResource($user))->additional([
+            'operator_access' => $operatorAccessService->forUser($user),
+        ]);
     }
 
     public function changeInitialPassword(ChangeInitialPasswordRequest $request): JsonResponse
