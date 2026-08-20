@@ -1,0 +1,122 @@
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  ~ update in-place
+-/+ destroy and then create replacement
+
+Terraform will perform the following actions:
+
+  # aws_ecs_service.backend will be updated in-place
+  ~ resource "aws_ecs_service" "backend" {
+        id                                 = "arn:aws:ecs:us-east-1:842549707278:service/terminal302-production/backend"
+        name                               = "backend"
+        tags                               = {}
+      ~ task_definition                    = "arn:aws:ecs:us-east-1:842549707278:task-definition/terminal302-production-backend:1" -> (known after apply)
+        # (16 unchanged attributes hidden)
+
+        # (4 unchanged blocks hidden)
+    }
+
+  # aws_ecs_service.frontend["frontend"] will be updated in-place
+  ~ resource "aws_ecs_service" "frontend" {
+        id                                 = "arn:aws:ecs:us-east-1:842549707278:service/terminal302-production/frontend"
+        name                               = "frontend"
+        tags                               = {}
+      ~ task_definition                    = "arn:aws:ecs:us-east-1:842549707278:task-definition/terminal302-production-frontend:1" -> (known after apply)
+        # (16 unchanged attributes hidden)
+
+        # (4 unchanged blocks hidden)
+    }
+
+  # aws_ecs_service.frontend["public-frontend"] will be updated in-place
+  ~ resource "aws_ecs_service" "frontend" {
+        id                                 = "arn:aws:ecs:us-east-1:842549707278:service/terminal302-production/public-frontend"
+        name                               = "public-frontend"
+        tags                               = {}
+      ~ task_definition                    = "arn:aws:ecs:us-east-1:842549707278:task-definition/terminal302-production-public-frontend:1" -> (known after apply)
+        # (16 unchanged attributes hidden)
+
+        # (4 unchanged blocks hidden)
+    }
+
+  # aws_ecs_task_definition.backend must be replaced
+-/+ resource "aws_ecs_task_definition" "backend" {
+      ~ arn                      = "arn:aws:ecs:us-east-1:842549707278:task-definition/terminal302-production-backend:1" -> (known after apply)
+      ~ arn_without_revision     = "arn:aws:ecs:us-east-1:842549707278:task-definition/terminal302-production-backend" -> (known after apply)
+      ~ container_definitions    = (sensitive value) # forces replacement
+      ~ enable_fault_injection   = false -> (known after apply)
+      ~ id                       = "terminal302-production-backend" -> (known after apply)
+      ~ revision                 = 1 -> (known after apply)
+      - tags                     = {} -> null
+        # (12 unchanged attributes hidden)
+
+        # (1 unchanged block hidden)
+    }
+
+  # aws_ecs_task_definition.frontend["frontend"] must be replaced
+-/+ resource "aws_ecs_task_definition" "frontend" {
+      ~ arn                      = "arn:aws:ecs:us-east-1:842549707278:task-definition/terminal302-production-frontend:1" -> (known after apply)
+      ~ arn_without_revision     = "arn:aws:ecs:us-east-1:842549707278:task-definition/terminal302-production-frontend" -> (known after apply)
+      ~ container_definitions    = jsonencode(
+          ~ [
+              ~ {
+                  - environment      = []
+                  ~ image            = "842549707278.dkr.ecr.us-east-1.amazonaws.com/terminal302-frontend:NOT_PUSHED_YET" -> "842549707278.dkr.ecr.us-east-1.amazonaws.com/terminal302-frontend:v1.0.0"
+                  - mountPoints      = []
+                    name             = "frontend"
+                  - systemControls   = []
+                  - volumesFrom      = []
+                    # (4 unchanged attributes hidden)
+                },
+            ] # forces replacement
+        )
+      ~ enable_fault_injection   = false -> (known after apply)
+      ~ id                       = "terminal302-production-frontend" -> (known after apply)
+      ~ revision                 = 1 -> (known after apply)
+      - tags                     = {} -> null
+        # (12 unchanged attributes hidden)
+
+        # (1 unchanged block hidden)
+    }
+
+  # aws_ecs_task_definition.frontend["public-frontend"] must be replaced
+-/+ resource "aws_ecs_task_definition" "frontend" {
+      ~ arn                      = "arn:aws:ecs:us-east-1:842549707278:task-definition/terminal302-production-public-frontend:1" -> (known after apply)
+      ~ arn_without_revision     = "arn:aws:ecs:us-east-1:842549707278:task-definition/terminal302-production-public-frontend" -> (known after apply)
+      ~ container_definitions    = jsonencode(
+          ~ [
+              ~ {
+                  - environment      = []
+                  ~ image            = "842549707278.dkr.ecr.us-east-1.amazonaws.com/terminal302-public-frontend:NOT_PUSHED_YET" -> "842549707278.dkr.ecr.us-east-1.amazonaws.com/terminal302-public-frontend:v1.0.0"
+                  - mountPoints      = []
+                    name             = "public-frontend"
+                  - systemControls   = []
+                  - volumesFrom      = []
+                    # (4 unchanged attributes hidden)
+                },
+            ] # forces replacement
+        )
+      ~ enable_fault_injection   = false -> (known after apply)
+      ~ id                       = "terminal302-production-public-frontend" -> (known after apply)
+      ~ revision                 = 1 -> (known after apply)
+      - tags                     = {} -> null
+        # (12 unchanged attributes hidden)
+
+        # (1 unchanged block hidden)
+    }
+
+  # aws_ecs_task_definition.migration must be replaced
+-/+ resource "aws_ecs_task_definition" "migration" {
+      ~ arn                      = "arn:aws:ecs:us-east-1:842549707278:task-definition/terminal302-production-migration:1" -> (known after apply)
+      ~ arn_without_revision     = "arn:aws:ecs:us-east-1:842549707278:task-definition/terminal302-production-migration" -> (known after apply)
+      ~ container_definitions    = (sensitive value) # forces replacement
+      ~ enable_fault_injection   = false -> (known after apply)
+      ~ id                       = "terminal302-production-migration" -> (known after apply)
+      ~ revision                 = 1 -> (known after apply)
+      - tags                     = {} -> null
+        # (12 unchanged attributes hidden)
+
+        # (1 unchanged block hidden)
+    }
+
+Plan: 4 to add, 3 to change, 4 to destroy.

@@ -17,6 +17,7 @@ use App\Services\TicketProcessingEventService;
 use App\Services\TicketRenderService;
 use App\Services\VentaHorarioLifecycleService;
 use App\Support\ApiResponse;
+use App\Support\StorageUrl;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -422,8 +423,8 @@ class VendedorTicketController extends Controller
         }
 
         return response()->json([
-            'image_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
-            'print_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
+            'image_url' => StorageUrl::for($ticket->ticket_image_path),
+            'print_url' => StorageUrl::for($ticket->ticket_image_path),
         ]);
     }
 
@@ -586,8 +587,8 @@ class VendedorTicketController extends Controller
         return [
             'id' => $ticket->id,
             'codigo_ticket' => $ticket->codigo_ticket,
-            'image_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
-            'print_url' => $ticket->ticket_image_path ? Storage::url($ticket->ticket_image_path) : null,
+            'image_url' => StorageUrl::for($ticket->ticket_image_path),
+            'print_url' => StorageUrl::for($ticket->ticket_image_path),
         ];
     }
 

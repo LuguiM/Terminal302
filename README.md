@@ -218,6 +218,8 @@ docker compose exec postgres createdb -U terminal302 terminal302_testing
 
 ## Documentación adicional
 
+- [Despliegue de producción en AWS](DEPLOYMENT_AWS.md)
+- [Auditoría técnica para AWS](docs/AUDITORIA_AWS.md)
 - [Referencia funcional y endpoints](docs/REFERENCIA_FUNCIONAL.md)
 - [Entorno local y simulación de AWS Lambda](docs/GUIA_AWS_LAMBDA_LOCAL.md)
 - [Swagger UI](http://localhost:8302/docs/api)

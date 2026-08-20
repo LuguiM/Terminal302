@@ -1,0 +1,336 @@
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  ~ update in-place
+
+Terraform will perform the following actions:
+
+  # aws_wafv2_web_acl.main[0] will be updated in-place
+  ~ resource "aws_wafv2_web_acl" "main" {
+        id                          = "39a578e5-4cc5-4131-a785-1a056e33982d"
+        name                        = "terminal302-production"
+        tags                        = {}
+        # (9 unchanged attributes hidden)
+
+      - rule {
+          - name     = "BlockOversizedBodyExceptTicketTemplateUploads" -> null
+          - priority = 11 -> null
+
+          - action {
+              - block {
+                }
+            }
+
+          - statement {
+              - and_statement {
+                  - statement {
+                      - label_match_statement {
+                          - key   = "awswaf:managed:aws:core-rule-set:SizeRestrictions_Body" -> null
+                          - scope = "LABEL" -> null
+                        }
+                    }
+                  - statement {
+                      - not_statement {
+                          - statement {
+                              - and_statement {
+                                  - statement {
+                                      - byte_match_statement {
+                                          - positional_constraint = "EXACTLY" -> null
+                                          - search_string         = "POST" -> null
+
+                                          - field_to_match {
+                                              - method {}
+                                            }
+
+                                          - text_transformation {
+                                              - priority = 0 -> null
+                                              - type     = "NONE" -> null
+                                            }
+                                        }
+                                    }
+                                  - statement {
+                                      - byte_match_statement {
+                                          - positional_constraint = "STARTS_WITH" -> null
+                                          - search_string         = "multipart/form-data" -> null
+
+                                          - field_to_match {
+                                              - single_header {
+                                                  - name = "content-type" -> null
+                                                }
+                                            }
+
+                                          - text_transformation {
+                                              - priority = 0 -> null
+                                              - type     = "LOWERCASE" -> null
+                                            }
+                                        }
+                                    }
+                                  - statement {
+                                      - byte_match_statement {
+                                          - positional_constraint = "STARTS_WITH" -> null
+                                          - search_string         = "bearer " -> null
+
+                                          - field_to_match {
+                                              - single_header {
+                                                  - name = "authorization" -> null
+                                                }
+                                            }
+
+                                          - text_transformation {
+                                              - priority = 0 -> null
+                                              - type     = "LOWERCASE" -> null
+                                            }
+                                        }
+                                    }
+                                  - statement {
+                                      - regex_match_statement {
+                                          - regex_string = "^/api/admin/ticket-plantillas(/[0-9]+)?$" -> null
+
+                                          - field_to_match {
+                                              - uri_path {}
+                                            }
+
+                                          - text_transformation {
+                                              - priority = 0 -> null
+                                              - type     = "NONE" -> null
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+          - visibility_config {
+              - cloudwatch_metrics_enabled = true -> null
+              - metric_name                = "terminal302-production-oversized-body-block" -> null
+              - sampled_requests_enabled   = true -> null
+            }
+        }
+      - rule {
+          - name     = "AWSManagedRulesCommonRuleSet" -> null
+          - priority = 10 -> null
+
+          - override_action {
+              - none {}
+            }
+
+          - statement {
+              - managed_rule_group_statement {
+                  - name        = "AWSManagedRulesCommonRuleSet" -> null
+                  - vendor_name = "AWS" -> null
+                    # (1 unchanged attribute hidden)
+
+                  - rule_action_override {
+                      - name = "SizeRestrictions_BODY" -> null
+
+                      - action_to_use {
+                          - count {
+                            }
+                        }
+                    }
+                }
+            }
+
+          - visibility_config {
+              - cloudwatch_metrics_enabled = true -> null
+              - metric_name                = "terminal302-production-common" -> null
+              - sampled_requests_enabled   = true -> null
+            }
+        }
+      - rule {
+          - name     = "AWSManagedRulesKnownBadInputsRuleSet" -> null
+          - priority = 20 -> null
+
+          - override_action {
+              - none {}
+            }
+
+          - statement {
+              - managed_rule_group_statement {
+                  - name        = "AWSManagedRulesKnownBadInputsRuleSet" -> null
+                  - vendor_name = "AWS" -> null
+                    # (1 unchanged attribute hidden)
+                }
+            }
+
+          - visibility_config {
+              - cloudwatch_metrics_enabled = true -> null
+              - metric_name                = "terminal302-production-known-bad" -> null
+              - sampled_requests_enabled   = true -> null
+            }
+        }
+      + rule {
+          + name     = "BlockManagedBodyMatchesExceptTicketTemplateUploads"
+          + priority = 11
+
+          + action {
+              + block {
+                }
+            }
+
+          + statement {
+              + and_statement {
+                  + statement {
+                      + or_statement {
+                          + statement {
+                              + label_match_statement {
+                                  + key   = "awswaf:managed:aws:core-rule-set:SizeRestrictions_Body"
+                                  + scope = "LABEL"
+                                }
+                            }
+                          + statement {
+                              + label_match_statement {
+                                  + key   = "awswaf:managed:aws:core-rule-set:CrossSiteScripting_Body"
+                                  + scope = "LABEL"
+                                }
+                            }
+                        }
+                    }
+                  + statement {
+                      + not_statement {
+                          + statement {
+                              + and_statement {
+                                  + statement {
+                                      + byte_match_statement {
+                                          + positional_constraint = "EXACTLY"
+                                          + search_string         = "POST"
+
+                                          + field_to_match {
+                                              + method {}
+                                            }
+
+                                          + text_transformation {
+                                              + priority = 0
+                                              + type     = "NONE"
+                                            }
+                                        }
+                                    }
+                                  + statement {
+                                      + byte_match_statement {
+                                          + positional_constraint = "STARTS_WITH"
+                                          + search_string         = "multipart/form-data"
+
+                                          + field_to_match {
+                                              + single_header {
+                                                  + name = "content-type"
+                                                }
+                                            }
+
+                                          + text_transformation {
+                                              + priority = 0
+                                              + type     = "LOWERCASE"
+                                            }
+                                        }
+                                    }
+                                  + statement {
+                                      + byte_match_statement {
+                                          + positional_constraint = "STARTS_WITH"
+                                          + search_string         = "bearer "
+
+                                          + field_to_match {
+                                              + single_header {
+                                                  + name = "authorization"
+                                                }
+                                            }
+
+                                          + text_transformation {
+                                              + priority = 0
+                                              + type     = "LOWERCASE"
+                                            }
+                                        }
+                                    }
+                                  + statement {
+                                      + regex_match_statement {
+                                          + regex_string = "^/api/admin/ticket-plantillas(/[0-9]+)?$"
+
+                                          + field_to_match {
+                                              + uri_path {}
+                                            }
+
+                                          + text_transformation {
+                                              + priority = 0
+                                              + type     = "NONE"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+          + visibility_config {
+              + cloudwatch_metrics_enabled = true
+              + metric_name                = "terminal302-production-managed-body-block"
+              + sampled_requests_enabled   = true
+            }
+        }
+      + rule {
+          + name     = "AWSManagedRulesCommonRuleSet"
+          + priority = 10
+
+          + override_action {
+              + none {}
+            }
+
+          + statement {
+              + managed_rule_group_statement {
+                  + name        = "AWSManagedRulesCommonRuleSet"
+                  + vendor_name = "AWS"
+                    # (1 unchanged attribute hidden)
+
+                  + rule_action_override {
+                      + name = "SizeRestrictions_BODY"
+
+                      + action_to_use {
+                          + count {
+                            }
+                        }
+                    }
+                  + rule_action_override {
+                      + name = "CrossSiteScripting_BODY"
+
+                      + action_to_use {
+                          + count {
+                            }
+                        }
+                    }
+                }
+            }
+
+          + visibility_config {
+              + cloudwatch_metrics_enabled = true
+              + metric_name                = "terminal302-production-common"
+              + sampled_requests_enabled   = true
+            }
+        }
+      + rule {
+          + name     = "AWSManagedRulesKnownBadInputsRuleSet"
+          + priority = 20
+
+          + override_action {
+              + none {}
+            }
+
+          + statement {
+              + managed_rule_group_statement {
+                  + name        = "AWSManagedRulesKnownBadInputsRuleSet"
+                  + vendor_name = "AWS"
+                }
+            }
+
+          + visibility_config {
+              + cloudwatch_metrics_enabled = true
+              + metric_name                = "terminal302-production-known-bad"
+              + sampled_requests_enabled   = true
+            }
+        }
+
+        # (3 unchanged blocks hidden)
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.

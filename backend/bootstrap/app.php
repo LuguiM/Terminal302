@@ -21,6 +21,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // ECS tasks are private; only the ALB can reach the application port.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_AWS_ELB,
+        );
+
         $middleware->redirectGuestsTo(null);
         $middleware->alias([
             'operator.active' => EnsureOperadorIsActive::class,

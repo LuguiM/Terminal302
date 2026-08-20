@@ -1,10 +1,12 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 backend/.env
 backend/.env.*
 !backend/.env.example
+!backend/.env.production.example
 backend/vendor/
 backend/node_modules/
 backend/database/*.sqlite
@@ -14,16 +16,26 @@ frontend/dist/
 frontend/.env
 frontend/.env.*
 !frontend/.env.example
+!frontend/.env.production.example
 
 public-frontend/node_modules/
 public-frontend/dist/
 public-frontend/.env
 public-frontend/.env.*
 !public-frontend/.env.example
+!public-frontend/.env.production.example
 
 .DS_Store
 Thumbs.db
 *.log
+__pycache__/
+*.py[cod]
 
 infrastructure/env.local.json
 .aws-sam/
+infrastructure/terraform/*.tfvars
+infrastructure/terraform/*.tfstate
+infrastructure/terraform/*.tfstate.*
+infrastructure/terraform/.terraform/
+infrastructure/terraform/plan.out
+infrastructure/terraform/public-ticket-validation.zip

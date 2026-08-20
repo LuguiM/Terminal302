@@ -3,10 +3,22 @@ Transform: AWS::Serverless-2016-10-31
 Description: Funciones serverless de Terminal302
 
 Parameters:
+  EnableLocalResources:
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+    Description: >-
+      Debe habilitarse explicitamente solo para sam local. Terraform administra
+      los recursos de produccion y este template no debe desplegarse en AWS.
   InternalApiToken:
     Type: String
     NoEcho: true
     Default: local-only-change-me
+  InternalApiTokenSecretArn:
+    Type: String
+    Default: ''
 
 Globals:
   Function:
@@ -18,13 +30,24 @@ Globals:
     Environment:
       Variables:
         INTERNAL_API_TOKEN: !Ref InternalApiToken
+        INTERNAL_API_TOKEN_SECRET_ARN: !Ref InternalApiTokenSecretArn
+        INTERNAL_API_TOKEN_SECRET_KEY: LAMBDA_INTERNAL_TOKEN
 
 Resources:
   PublicTicketValidationFunction:
     Type: AWS::Serverless::Function
+    Condition: LocalResourcesEnabled
     Properties:
       CodeUri: ../lambda/public-ticket-validation/src/
       Handler: handler.lambda_handler
+      Policies:
+        - !If
+          - HasInternalApiTokenSecret
+          - Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref InternalApiTokenSecretArn
+          - !Ref AWS::NoValue
       Events:
         VerifyTicket:
           Type: HttpApi
@@ -32,6 +55,11 @@ Resources:
             Path: /tickets/verify
             Method: POST
 
+Conditions:
+  LocalResourcesEnabled: !Equals [!Ref EnableLocalResources, 'true']
+  HasInternalApiTokenSecret: !Not [!Equals [!Ref InternalApiTokenSecretArn, '']]
+
 Outputs:
   PublicTicketValidationFunctionArn:
+    Condition: LocalResourcesEnabled
     Value: !GetAtt PublicTicketValidationFunction.Arn

@@ -1,0 +1,34 @@
+aws_region  = "us-east-1"
+environment = "production"
+
+# El primer plan no requiere dominio. Mantener vacio hasta decidir DNS/ACM.
+app_domain      = ""
+public_domain   = ""
+hosted_zone_id  = ""
+certificate_arn = ""
+
+# Reemplazar antes del plan. No guardar el valor del secreto en este archivo.
+app_secret_arn      = "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:terminal302/production/app-REPLACE"
+initial_admin_email = "REPLACE_WITH_ADMIN_EMAIL"
+
+# Mantener "log" hasta configurar un proveedor SMTP real.
+mail_mailer       = "log"
+mail_host         = ""
+mail_port         = 587
+mail_scheme       = "tls"
+mail_from_address = ""
+
+# Los repositorios estaran vacios en el primer apply; desired_count=0 evita pulls.
+backend_image_tag         = "NOT_PUSHED_YET"
+frontend_image_tag        = "NOT_PUSHED_YET"
+public_frontend_image_tag = "NOT_PUSHED_YET"
+
+# Primer apply: 0. Cambiar a 1 despues de publicar imagenes y completar secretos.
+backend_desired_count         = 0
+frontend_desired_count        = 0
+public_frontend_desired_count = 0
+
+enable_waf         = true
+enable_nat_gateway = true
+budget_alert_email = ""
+monthly_budget_usd = 25

@@ -59,8 +59,13 @@ class DatabaseSeeder extends Seeder
             ['nombre' => 'Domingo', 'orden' => 7],
         ])->each(fn (array $dia) => Dia::query()->updateOrCreate(['orden' => $dia['orden']], $dia));
 
-        // $temporaryPassword = Str::password(length: 14, symbols: false);
-        $temporaryPassword = 'alNW7UM51n5b'; // Temporal password for initial admin user
+        $temporaryPassword = env('INITIAL_ADMIN_PASSWORD');
+
+        if (! $temporaryPassword && app()->isProduction()) {
+            throw new \RuntimeException('INITIAL_ADMIN_PASSWORD es obligatorio al ejecutar seeders en produccion.');
+        }
+
+        $temporaryPassword ??= Str::password(length: 16, symbols: false);
 
         User::query()->updateOrCreate(
             ['email' => env('INITIAL_ADMIN_EMAIL', 'admin@terminal302.local')],
@@ -70,13 +75,16 @@ class DatabaseSeeder extends Seeder
                 'estado_id' => Estado::ACTIVO_ID,
                 'email_verified_at' => now(),
                 'password' => Hash::make($temporaryPassword),
-                'must_change_password' => false,
+                'must_change_password' => true,
             ],
         );
 
-        $this->command?->warn('Administrador inicial de Terminal302');
-        $this->command?->line('Email: '.env('INITIAL_ADMIN_EMAIL', 'admin@terminal302.local'));
-        $this->command?->line('Contrasena temporal: '.$temporaryPassword);
-        $this->command?->warn('Guarda esta contrasena ahora. No se almacena en texto plano.');
+        $this->command?->warn('Administrador inicial de Terminal302 creado o actualizado.');
+
+        if (! app()->isProduction()) {
+            $this->command?->line('Email: '.env('INITIAL_ADMIN_EMAIL', 'admin@terminal302.local'));
+            $this->command?->line('Contrasena temporal: '.$temporaryPassword);
+            $this->command?->warn('Guarda esta contrasena ahora. No se almacena en texto plano.');
+        }
     }
 }
