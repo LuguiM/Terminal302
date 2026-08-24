@@ -2,9 +2,9 @@
 
 namespace App\Http\Resources;
 
+use App\Support\StorageUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class TicketResource extends JsonResource
 {
@@ -26,8 +26,8 @@ class TicketResource extends JsonResource
             'estado' => [
                 'nombre' => $this->estado?->nombre,
             ],
-            'image_url' => $this->ticket_image_path ? Storage::url($this->ticket_image_path) : null,
-            'print_url' => $this->ticket_image_path ? Storage::url($this->ticket_image_path) : null,
+            'image_url' => StorageUrl::for($this->ticket_image_path),
+            'print_url' => StorageUrl::for($this->ticket_image_path),
             'procesamiento_estado' => $this->whenLoaded('procesamientoEstado', fn (): ?array => $this->procesamientoEstado ? [
                 'nombre' => $this->procesamientoEstado->nombre,
             ] : null),

@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Funciones serverless de Terminal302
+
+Parameters:
+  EnableLocalResources:
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+    Description: >-
+      Debe habilitarse explicitamente solo para sam local. Terraform administra
+      los recursos de produccion y este template no debe desplegarse en AWS.
+  InternalApiToken:
+    Type: String
+    NoEcho: true
+    Default: local-only-change-me
+  InternalApiTokenSecretArn:
+    Type: String
+    Default: ''
+  DigitalDeliveryBackendUrl:
+    Type: String
+    Default: http://host.docker.internal:8000/api/internal/digital-ticket-deliveries/process
+  DigitalDeliveryBucket:
+    Type: String
+    Default: terminal302-local
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+    Timeout: 5
+    MemorySize: 128
+    Environment:
+      Variables:
+        INTERNAL_API_TOKEN: !Ref InternalApiToken
+        INTERNAL_API_TOKEN_SECRET_ARN: !Ref InternalApiTokenSecretArn
+        INTERNAL_API_TOKEN_SECRET_KEY: LAMBDA_INTERNAL_TOKEN
+
+Resources:
+  PublicTicketValidationFunction:
+    Type: AWS::Serverless::Function
+    Condition: LocalResourcesEnabled
+    Properties:
+      CodeUri: ../lambda/public-ticket-validation/src/
+      Handler: handler.lambda_handler
+      Policies:
+        - !If
+          - HasInternalApiTokenSecret
+          - Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref InternalApiTokenSecretArn
+          - !Ref AWS::NoValue
+      Events:
+        VerifyTicket:
+          Type: HttpApi
+          Properties:
+            Path: /tickets/verify
+            Method: POST
+  DigitalTicketProcessorFunction:
+    Type: AWS::Serverless::Function
+    Condition: LocalResourcesEnabled
+    Properties:
+      CodeUri: ../lambda/digital-ticket-processor/src/
+      Handler: handler.lambda_handler
+      Timeout: 30
+      Environment:
+        Variables:
+          BACKEND_DELIVERY_URL: !Ref DigitalDeliveryBackendUrl
+          BACKEND_MAX_ATTEMPTS: '3'
+          BACKEND_TIMEOUT_SECONDS: '8'
+          DELIVERY_EVENTS_BUCKET: !Ref DigitalDeliveryBucket
+          INTERNAL_API_TOKEN_SECRET_KEY: DIGITAL_DELIVERY_INTERNAL_TOKEN
+      Policies:
+        - !If
+          - HasInternalApiTokenSecret
+          - Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref InternalApiTokenSecretArn
+          - !Ref AWS::NoValue
+
+Conditions:
+  LocalResourcesEnabled: !Equals [!Ref EnableLocalResources, 'true']
+  HasInternalApiTokenSecret: !Not [!Equals [!Ref InternalApiTokenSecretArn, '']]
+
+Outputs:
+  PublicTicketValidationFunctionArn:
+    Condition: LocalResourcesEnabled
+    Value: !GetAtt PublicTicketValidationFunction.Arn
+  DigitalTicketProcessorFunctionArn:
+    Condition: LocalResourcesEnabled
+    Value: !GetAtt DigitalTicketProcessorFunction.Arn

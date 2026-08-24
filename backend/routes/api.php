@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\AdminTicketPlantillaController;
 use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BusController;
+use App\Http\Controllers\Api\InternalDigitalTicketDeliveryController;
 use App\Http\Controllers\Api\MeMenuRutaController;
 use App\Http\Controllers\Api\OperadorController;
 use App\Http\Controllers\Api\OperadorDashboardController;
@@ -33,6 +34,12 @@ Route::prefix('public')->group(function (): void {
     Route::get('/rutas/{ruta}/horarios', [PublicRutaController::class, 'horariosPorRuta']);
     Route::get('/tickets/{codigoTicket}', [PublicTicketController::class, 'showByCode']);
 });
+
+Route::middleware('digital.delivery.machine')
+    ->prefix('internal/digital-ticket-deliveries')
+    ->group(function (): void {
+        Route::post('/process', [InternalDigitalTicketDeliveryController::class, 'process']);
+    });
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout']);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\StorageUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -16,7 +17,7 @@ class TicketPlantillaResource extends JsonResource
         return [
             'id' => $this->id,
             'nombre' => $this->nombre,
-            'image_url' => $this->image_path ? Storage::url($this->image_path) : null,
+            'image_url' => StorageUrl::for($this->image_path),
             'download_url' => $this->id ? url("/api/admin/ticket-plantillas/{$this->id}/download") : null,
             'image_size_bytes' => $this->image_path && Storage::exists($this->image_path)
                 ? Storage::size($this->image_path)

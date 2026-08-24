@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1.7
+FROM composer:2 AS vendor
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN --mount=type=cache,target=/tmp/composer-cache \
+    COMPOSER_CACHE_DIR=/tmp/composer-cache composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-scripts
+
+COPY . .
+RUN composer dump-autoload --no-dev --classmap-authoritative --no-interaction
+
+FROM php:8.3-fpm-bookworm AS runtime
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        nginx \
+        curl \
+        libpq-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        fonts-dejavu-core \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j"$(nproc)" gd opcache pdo_pgsql \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /etc/nginx/sites-enabled/default
+
+WORKDIR /var/www/html
+
+COPY --from=vendor --chown=www-data:www-data /app /var/www/html
+COPY docker/production/nginx.conf /etc/nginx/conf.d/terminal302.conf
+COPY docker/production/php.ini /usr/local/etc/php/conf.d/terminal302-production.ini
+COPY docker/production/entrypoint.sh /usr/local/bin/terminal302-production-entrypoint
+
+RUN chmod +x /usr/local/bin/terminal302-production-entrypoint \
+    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
+
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stderr \
+    LOG_LEVEL=warning
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl --fail --silent http://127.0.0.1:8080/up >/dev/null || exit 1
+
+ENTRYPOINT ["terminal302-production-entrypoint"]
+CMD ["serve"]

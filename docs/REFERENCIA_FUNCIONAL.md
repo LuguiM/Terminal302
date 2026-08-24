@@ -220,7 +220,7 @@ El vendedor autenticado y la fecha de cierre se asignan automáticamente. No exi
 Una venta con tipo de envío `digital` crea los tickets, genera el QR y la imagen PNG, y registra un evento pendiente en:
 
 ```text
-ticket-events/pending/{codigo_ticket}.json
+ticket-events/pending/{uuid_evento}.json
 ```
 
 Para procesar los eventos localmente:
@@ -235,7 +235,7 @@ Para limitar la cantidad:
 docker compose exec backend php artisan tickets:process-digital-deliveries --limit=10
 ```
 
-El comando envía el ticket PNG al correo de destino y mueve el evento a `ticket-events/completed`. Si falla, lo mueve a `ticket-events/failed` y guarda el error. El ticket registra `processed_at` o `processing_error` según el resultado.
+En AWS, un trigger S3 limitado a `ticket-events/pending/*.json` invoca la Lambda `digital-ticket-processor`, que delega el procesamiento al endpoint interno autenticado de Laravel. El comando se conserva como fallback local y administrativo. Ambos reutilizan `TicketDigitalDeliveryService`: envían el ticket PNG al correo de destino y archivan el evento en `ticket-events/completed`; si falla, lo archivan en `ticket-events/failed` y guardan el error. El ticket registra `processed_at` o `processing_error` según el resultado. Consulta [ASYNC_DIGITAL_DELIVERY.md](../ASYNC_DIGITAL_DELIVERY.md).
 
 ### Mailpit
 

@@ -9,8 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class ProcesamientoEstado extends Model
 {
     public const PENDING = 'Pendiente';
+
     public const PROCESSING = 'Procesando';
+
     public const COMPLETED = 'Completado';
+
     public const FAILED = 'Fallido';
 
     protected $table = 'procesamiento_estados';
@@ -39,5 +42,15 @@ class ProcesamientoEstado extends Model
     public function isFailed(): bool
     {
         return mb_strtolower($this->nombre) === mb_strtolower(self::FAILED);
+    }
+
+    public function isProcessing(): bool
+    {
+        return mb_strtolower($this->nombre) === mb_strtolower(self::PROCESSING);
+    }
+
+    public function isCompleted(): bool
+    {
+        return mb_strtolower($this->nombre) === mb_strtolower(self::COMPLETED);
     }
 }

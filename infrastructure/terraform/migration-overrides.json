@@ -1,0 +1,12 @@
+{
+  "containerOverrides": [
+    {
+      "name": "migration",
+      "command": [
+        "sh",
+        "-lc",
+        "php artisan migrate --force && php artisan db:seed --force"
+      ]
+    }
+  ]
+}

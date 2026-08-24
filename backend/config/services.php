@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'ticket_verification' => [
+        'driver' => env('TICKET_VERIFICATION_DRIVER', 'local'),
+        'base_url' => env('LAMBDA_BASE_URL', 'http://host.docker.internal:3001'),
+        'internal_token' => env('LAMBDA_INTERNAL_TOKEN', ''),
+        'timeout' => (int) env('LAMBDA_TIMEOUT_SECONDS', 3),
+    ],
+
 ];

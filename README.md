@@ -188,6 +188,8 @@ Por defecto, Laravel usa `MAIL_MAILER=log`; los correos se registran sin enviars
 docker compose exec backend php artisan tickets:process-digital-deliveries
 ```
 
+En AWS, los eventos `ticket-events/pending/*.json` se procesan automáticamente mediante la Lambda dedicada `digital-ticket-processor`; el comando anterior se conserva como fallback administrativo.
+
 La configuración de Mailpit, Mailtrap y el comportamiento detallado de las entregas se explican en la [referencia funcional](docs/REFERENCIA_FUNCIONAL.md#tickets-digitales-y-correo-local).
 
 ## Solución de problemas
@@ -218,8 +220,11 @@ docker compose exec postgres createdb -U terminal302 terminal302_testing
 
 ## Documentación adicional
 
+- [Despliegue de producción en AWS](DEPLOYMENT_AWS.md)
+- [Auditoría técnica para AWS](docs/AUDITORIA_AWS.md)
 - [Referencia funcional y endpoints](docs/REFERENCIA_FUNCIONAL.md)
+- [Entorno local y simulación de AWS Lambda](docs/GUIA_AWS_LAMBDA_LOCAL.md)
 - [Swagger UI](http://localhost:8302/docs/api)
 - [Especificación OpenAPI](http://localhost:8302/docs/api/openapi.yaml)
 
-La integración real con AWS está prevista para fases posteriores. Las carpetas `lambda/`, `infrastructure/` y `docs/` sirven como base para esa evolución.
+La verificación pública de tickets incluye una primera integración local con AWS SAM. El despliegue y la conexión con recursos AWS reales están previstos para fases posteriores.
