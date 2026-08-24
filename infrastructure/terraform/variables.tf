@@ -50,7 +50,7 @@ variable "enable_nat_gateway" {
 }
 
 variable "app_secret_arn" {
-  description = "ARN de un secreto JSON existente con APP_KEY, LAMBDA_INTERNAL_TOKEN e INITIAL_ADMIN_PASSWORD."
+  description = "ARN de un secreto JSON existente con APP_KEY, LAMBDA_INTERNAL_TOKEN, DIGITAL_DELIVERY_INTERNAL_TOKEN e INITIAL_ADMIN_PASSWORD."
   type        = string
   sensitive   = true
 }
@@ -144,6 +144,12 @@ variable "public_frontend_desired_count" {
 variable "enable_ticket_validation_lambda" {
   type    = bool
   default = true
+}
+
+variable "enable_digital_ticket_processor" {
+  description = "Habilita el consumidor asincrono de eventos S3 de entrega digital. Requiere HTTPS en el ALB."
+  type        = bool
+  default     = true
 }
 
 variable "log_retention_days" {

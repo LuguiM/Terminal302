@@ -45,6 +45,7 @@ locals {
   backend_secrets = [
     { name = "APP_KEY", valueFrom = "${var.app_secret_arn}:APP_KEY::" },
     { name = "LAMBDA_INTERNAL_TOKEN", valueFrom = "${var.app_secret_arn}:LAMBDA_INTERNAL_TOKEN::" },
+    { name = "DIGITAL_DELIVERY_INTERNAL_TOKEN", valueFrom = "${var.app_secret_arn}:DIGITAL_DELIVERY_INTERNAL_TOKEN::" },
     { name = "MAIL_USERNAME", valueFrom = "${var.app_secret_arn}:MAIL_USERNAME::" },
     { name = "MAIL_PASSWORD", valueFrom = "${var.app_secret_arn}:MAIL_PASSWORD::" },
     { name = "DB_PASSWORD", valueFrom = "${aws_db_instance.postgres.master_user_secret[0].secret_arn}:password::" },

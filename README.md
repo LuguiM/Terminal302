@@ -188,6 +188,8 @@ Por defecto, Laravel usa `MAIL_MAILER=log`; los correos se registran sin enviars
 docker compose exec backend php artisan tickets:process-digital-deliveries
 ```
 
+En AWS, los eventos `ticket-events/pending/*.json` se procesan automáticamente mediante la Lambda dedicada `digital-ticket-processor`; el comando anterior se conserva como fallback administrativo.
+
 La configuración de Mailpit, Mailtrap y el comportamiento detallado de las entregas se explican en la [referencia funcional](docs/REFERENCIA_FUNCIONAL.md#tickets-digitales-y-correo-local).
 
 ## Solución de problemas

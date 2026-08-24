@@ -19,6 +19,12 @@ Parameters:
   InternalApiTokenSecretArn:
     Type: String
     Default: ''
+  DigitalDeliveryBackendUrl:
+    Type: String
+    Default: http://host.docker.internal:8000/api/internal/digital-ticket-deliveries/process
+  DigitalDeliveryBucket:
+    Type: String
+    Default: terminal302-local
 
 Globals:
   Function:
@@ -54,6 +60,28 @@ Resources:
           Properties:
             Path: /tickets/verify
             Method: POST
+  DigitalTicketProcessorFunction:
+    Type: AWS::Serverless::Function
+    Condition: LocalResourcesEnabled
+    Properties:
+      CodeUri: ../lambda/digital-ticket-processor/src/
+      Handler: handler.lambda_handler
+      Timeout: 30
+      Environment:
+        Variables:
+          BACKEND_DELIVERY_URL: !Ref DigitalDeliveryBackendUrl
+          BACKEND_MAX_ATTEMPTS: '3'
+          BACKEND_TIMEOUT_SECONDS: '8'
+          DELIVERY_EVENTS_BUCKET: !Ref DigitalDeliveryBucket
+          INTERNAL_API_TOKEN_SECRET_KEY: DIGITAL_DELIVERY_INTERNAL_TOKEN
+      Policies:
+        - !If
+          - HasInternalApiTokenSecret
+          - Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref InternalApiTokenSecretArn
+          - !Ref AWS::NoValue
 
 Conditions:
   LocalResourcesEnabled: !Equals [!Ref EnableLocalResources, 'true']
@@ -63,3 +91,6 @@ Outputs:
   PublicTicketValidationFunctionArn:
     Condition: LocalResourcesEnabled
     Value: !GetAtt PublicTicketValidationFunction.Arn
+  DigitalTicketProcessorFunctionArn:
+    Condition: LocalResourcesEnabled
+    Value: !GetAtt DigitalTicketProcessorFunction.Arn

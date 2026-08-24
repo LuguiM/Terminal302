@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\DigitalTicketMail;
 use App\Models\Bus;
 use App\Models\Dia;
 use App\Models\Estado;
@@ -13,12 +14,11 @@ use App\Models\Role;
 use App\Models\Ruta;
 use App\Models\Ticket;
 use App\Models\TicketPlantilla;
-use App\Models\TipoEnvio;
 use App\Models\TipoBus;
+use App\Models\TipoEnvio;
 use App\Models\TipoOperador;
 use App\Models\User;
 use App\Models\VentaHorario;
-use App\Mail\DigitalTicketMail;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -197,12 +197,15 @@ class TicketApiTest extends TestCase
             ->assertJsonMissingPath('event_paths');
 
         $ticket = Ticket::query()->firstOrFail();
-        $expectedPath = "ticket-events/pending/{$ticket->codigo_ticket}.json";
+        $expectedPath = $ticket->processing_event_path;
 
+        $this->assertMatchesRegularExpression('#^ticket-events/pending/[0-9a-f-]{36}\.json$#', $expectedPath);
         Storage::disk(config('filesystems.default'))->assertExists($expectedPath);
         $this->assertSame($expectedPath, $ticket->fresh()->processing_event_path);
-        $this->assertStringContainsString('cliente@example.test', Storage::disk(config('filesystems.default'))->get($expectedPath));
-        $this->assertStringContainsString('77777777', Storage::disk(config('filesystems.default'))->get($expectedPath));
+        $payload = json_decode(Storage::disk(config('filesystems.default'))->get($expectedPath), true);
+        $this->assertSame(['schema_version', 'event_id', 'ticket_id', 'created_at'], array_keys($payload));
+        $this->assertStringNotContainsString('cliente@example.test', json_encode($payload));
+        $this->assertStringNotContainsString('77777777', json_encode($payload));
         Mail::assertNothingSent();
     }
 
@@ -227,8 +230,8 @@ class TicketApiTest extends TestCase
         ])->assertCreated();
 
         $ticket = Ticket::query()->firstOrFail();
-        $pendingPath = "ticket-events/pending/{$ticket->codigo_ticket}.json";
-        $completedPath = "ticket-events/completed/{$ticket->codigo_ticket}.json";
+        $pendingPath = $ticket->processing_event_path;
+        $completedPath = 'ticket-events/completed/'.basename($pendingPath);
 
         Storage::disk(config('filesystems.default'))->assertExists($pendingPath);
 
@@ -270,10 +273,14 @@ class TicketApiTest extends TestCase
             'TKT-DIGITAL-FAILED',
             procesamientoEstado: $pending,
         );
-        $eventPath = "ticket-events/pending/{$ticket->codigo_ticket}.json";
+        $eventId = '123e4567-e89b-42d3-a456-426614174000';
+        $eventPath = "ticket-events/pending/{$eventId}.json";
+        $ticket->forceFill(['processing_event_path' => $eventPath])->save();
         Storage::put($eventPath, json_encode([
+            'schema_version' => 1,
+            'event_id' => $eventId,
             'ticket_id' => $ticket->id,
-            'codigo_ticket' => $ticket->codigo_ticket,
+            'created_at' => now()->utc()->toIso8601String(),
         ]));
 
         $this->artisan('tickets:process-digital-deliveries')
@@ -284,9 +291,97 @@ class TicketApiTest extends TestCase
         $this->assertSame($failed->id, $ticket->procesamiento_estado_id);
         $this->assertNull($ticket->processed_at);
         $this->assertNotNull($ticket->processing_error);
-        $this->assertSame("ticket-events/failed/{$ticket->codigo_ticket}.json", $ticket->processing_event_path);
+        $this->assertSame("ticket-events/failed/{$eventId}.json", $ticket->processing_event_path);
         Storage::disk(config('filesystems.default'))->assertMissing($eventPath);
-        Storage::disk(config('filesystems.default'))->assertExists("ticket-events/failed/{$ticket->codigo_ticket}.json");
+        Storage::disk(config('filesystems.default'))->assertExists("ticket-events/failed/{$eventId}.json");
+        Mail::assertNothingSent();
+    }
+
+    public function test_internal_delivery_endpoint_is_machine_authenticated_and_idempotent(): void
+    {
+        config(['digital_delivery.internal_token' => 'machine-test-token']);
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $this->createTicketPlantilla();
+        $this->createProcesamientoEstado(ProcesamientoEstado::PENDING);
+        $this->createProcesamientoEstado(ProcesamientoEstado::PROCESSING);
+        $completed = $this->createProcesamientoEstado(ProcesamientoEstado::COMPLETED);
+        $this->createProcesamientoEstado(ProcesamientoEstado::FAILED);
+        $digital = $this->createTipoEnvio(TipoEnvio::DIGITAL);
+        $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
+
+        Sanctum::actingAs($vendedor);
+        $this->postJson('/api/vendedor/tickets', [
+            'venta_horario_id' => $ventaHorario->id,
+            'cantidad' => 1,
+            'tipo_envio_id' => $digital->id,
+            'correo_destino' => 'cliente@example.test',
+        ])->assertCreated();
+
+        $ticket = Ticket::query()->firstOrFail();
+        $eventId = pathinfo($ticket->processing_event_path, PATHINFO_FILENAME);
+
+        $this->postJson('/api/internal/digital-ticket-deliveries/process', ['event_id' => $eventId])
+            ->assertUnauthorized();
+
+        $headers = ['X-Internal-Token' => 'machine-test-token'];
+        $this->withHeaders($headers)
+            ->postJson('/api/internal/digital-ticket-deliveries/process', ['event_id' => $eventId])
+            ->assertOk()
+            ->assertJsonPath('status', 'completed');
+
+        $this->withHeaders($headers)
+            ->postJson('/api/internal/digital-ticket-deliveries/process', ['event_id' => $eventId])
+            ->assertOk()
+            ->assertJsonPath('status', 'completed');
+
+        $ticket->refresh();
+        $this->assertSame($completed->id, $ticket->procesamiento_estado_id);
+        $this->assertSame("ticket-events/completed/{$eventId}.json", $ticket->processing_event_path);
+        Storage::assertExists("ticket-events/pending/{$eventId}.json");
+        Mail::assertSent(DigitalTicketMail::class, 1);
+    }
+
+    public function test_internal_delivery_endpoint_returns_failed_without_retrying_a_failed_delivery(): void
+    {
+        config(['digital_delivery.internal_token' => 'machine-test-token']);
+        $vendedor = $this->createUser('vendedor', 'vendedor@example.test');
+        $plantilla = $this->createTicketPlantilla();
+        $digital = $this->createTipoEnvio(TipoEnvio::DIGITAL);
+        $pending = $this->createProcesamientoEstado(ProcesamientoEstado::PENDING);
+        $this->createProcesamientoEstado(ProcesamientoEstado::PROCESSING);
+        $this->createProcesamientoEstado(ProcesamientoEstado::COMPLETED);
+        $failed = $this->createProcesamientoEstado(ProcesamientoEstado::FAILED);
+        $ventaHorario = $this->createVentaHorario($this->createHorarioContext());
+        $ticket = $this->createTicket(
+            $ventaHorario,
+            $vendedor,
+            $plantilla,
+            $digital,
+            'TKT-INTERNAL-FAILED',
+            procesamientoEstado: $pending,
+        );
+        $ticket->forceFill(['correo_destino' => 'cliente@example.test'])->save();
+        $eventId = '123e4567-e89b-42d3-a456-426614174001';
+        $eventPath = "ticket-events/pending/{$eventId}.json";
+        $ticket->forceFill(['processing_event_path' => $eventPath])->save();
+        Storage::put($eventPath, json_encode([
+            'schema_version' => 1,
+            'event_id' => $eventId,
+            'ticket_id' => $ticket->id,
+            'created_at' => now()->utc()->toIso8601String(),
+        ]));
+
+        $headers = ['X-Internal-Token' => 'machine-test-token'];
+        $this->withHeaders($headers)
+            ->postJson('/api/internal/digital-ticket-deliveries/process', ['event_id' => $eventId])
+            ->assertOk()
+            ->assertJsonPath('status', 'failed');
+        $this->withHeaders($headers)
+            ->postJson('/api/internal/digital-ticket-deliveries/process', ['event_id' => $eventId])
+            ->assertOk()
+            ->assertJsonPath('status', 'failed');
+
+        $this->assertSame($failed->id, $ticket->fresh()->procesamiento_estado_id);
         Mail::assertNothingSent();
     }
 
@@ -382,7 +477,9 @@ class TicketApiTest extends TestCase
             ->assertJsonMissingPath('ticket.processing_error')
             ->assertJsonMissingPath('processing_event_path');
 
-        Storage::disk(config('filesystems.default'))->assertExists("ticket-events/pending/{$ticket->codigo_ticket}.json");
+        $eventPath = $ticket->fresh()->processing_event_path;
+        $this->assertMatchesRegularExpression('#^ticket-events/pending/[0-9a-f-]{36}\.json$#', $eventPath);
+        Storage::disk(config('filesystems.default'))->assertExists($eventPath);
     }
 
     public function test_retry_processing_rejects_non_digital_or_foreign_tickets(): void

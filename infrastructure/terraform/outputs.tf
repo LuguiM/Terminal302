@@ -35,6 +35,10 @@ output "ticket_validation_url" {
   value = var.enable_ticket_validation_lambda ? "${trimsuffix(aws_apigatewayv2_stage.lambda[0].invoke_url, "/")}/tickets/verify" : null
 }
 
+output "digital_ticket_processor_name" {
+  value = var.enable_digital_ticket_processor ? aws_lambda_function.digital_ticket_processor[0].function_name : null
+}
+
 output "migration_task_definition" {
   value = aws_ecs_task_definition.migration.family
 }

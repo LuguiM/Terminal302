@@ -30,5 +30,6 @@ public_frontend_desired_count = 0
 
 enable_waf         = true
 enable_nat_gateway = true
+enable_digital_ticket_processor = true
 budget_alert_email = ""
 monthly_budget_usd = 25

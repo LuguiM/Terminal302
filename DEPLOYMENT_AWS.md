@@ -229,16 +229,16 @@ No guardes certificados dentro de imágenes. El ALB termina TLS y Laravel confí
 
 ## 12. S3 y Lambda
 
-S3 usa IAM Task Role. Valida escritura creando una plantilla/ticket, no con credenciales estáticas. La Lambda existente se empaqueta desde `lambda/public-ticket-validation/src`, lee el token de Secrets Manager en cold start, registra JSON sin datos del ticket y se publica tras API Gateway con throttling.
+S3 usa IAM Task Role. Valida escritura creando una plantilla/ticket, no con credenciales estáticas. La Lambda pública se empaqueta desde `lambda/public-ticket-validation/src`, lee su token de Secrets Manager en cold start, registra JSON sin datos del ticket y se publica tras API Gateway con throttling.
 
-No agregues un S3 notification al handler actual. La Lambda de entrega digital y su contrato/idempotencia/DLQ están **PENDIENTES DE IMPLEMENTAR**.
+La entrega digital utiliza una Lambda distinta, empaquetada desde `lambda/digital-ticket-processor/src`. Su notification sólo acepta `ticket-events/pending/*.json`; no reutiliza ni modifica `public-ticket-validation`. El contrato, idempotencia, IAM y operación están documentados en [ASYNC_DIGITAL_DELIVERY.md](ASYNC_DIGITAL_DELIVERY.md).
 
 ## 13. Correo, queues y scheduler
 
 - Con `mail_mailer=log`, recuperación de contraseña y tickets digitales no se entregan. Configura SMTP/SES antes de considerarlos operativos.
 - No hay Jobs/`ShouldQueue`; `QUEUE_CONNECTION=sync` evita requerir un worker inexistente.
 - No hay Scheduler registrado; no se crea EventBridge Schedule.
-- Mientras no exista la Lambda S3, `tickets:process-digital-deliveries` puede ejecutarse como tarea ECS puntual sobrescribiendo el comando del task backend. No lo programes sin evaluar idempotencia y concurrencia.
+- `tickets:process-digital-deliveries` se conserva como fallback/reprocesamiento administrativo y reutiliza el mismo servicio idempotente que el endpoint interno. No debe programarse en paralelo con la Lambda salvo durante una contingencia controlada.
 
 ## 14. CloudWatch y operación
 
@@ -292,5 +292,5 @@ Las etiquetas ECR son inmutables y se conservan 10 imágenes. Para rollback:
 - Creación/aprobación final de infraestructura (`terraform apply`).
 - Publicación ECR y ejecución de migraciones.
 - Suscripción SNS para alarmas.
-- Implementación funcional de Lambda de entrega digital/S3 Trigger y proveedor WhatsApp.
+- Integración del proveedor WhatsApp (la entrega por correo y el S3 Trigger ya están implementados).
 - Prueba de carga, pentest, estrategia de recuperación y decisión Multi-AZ antes de tráfico crítico.

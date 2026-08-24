@@ -14,7 +14,7 @@ Inventario relevante:
 - 24 archivos de pruebas backend.
 - Almacenamiento mediante `Storage`, local por defecto; plantillas, QR, tickets finales y eventos digitales comparten el disco configurado.
 - Generacion QR con `endroid/qr-code` y composicion PNG mediante GD.
-- Entregas digitales procesadas por el comando manual `tickets:process-digital-deliveries`.
+- En el momento de esta auditoría, las entregas digitales se procesaban con el comando manual `tickets:process-digital-deliveries`; la implementación posterior S3/Lambda se documenta en `ASYNC_DIGITAL_DELIVERY.md`.
 - No hay clases `Job`, implementaciones `ShouldQueue`, workers obligatorios ni tareas registradas en Laravel Scheduler.
 - Lambda existente: validacion publica de estado/fecha de ticket. Laravel conserva fallback local.
 - SAM existente en `infrastructure/template.yaml`; no existia IaC para la aplicacion completa.
@@ -46,7 +46,7 @@ Versiones detectadas:
 - No habia CORS publicado/configurable y Laravel no declaraba confianza explicita en los headers del ALB.
 - `Storage::url()` generaba enlaces no utilizables si el bucket S3 era privado.
 - Los logs Laravel predeterminados iban a un archivo del contenedor.
-- El procesador de entrega digital es sincrono/manual. No existe todavia la Lambda que consuma eventos S3.
+- Hallazgo histórico resuelto: el procesador era síncrono/manual. Ahora `digital-ticket-processor` consume únicamente eventos S3 `ticket-events/pending/*.json` y delega la lógica a Laravel.
 - El correo local usa `MAIL_MAILER=log`; recuperacion de contrasena y entrega digital no enviaran mensajes hasta configurar SMTP/SES.
 - La Lambda usaba un secreto directamente en variables de entorno. Ahora puede obtenerlo de Secrets Manager una vez por entorno de ejecucion.
 - El OpenAPI conserva un servidor localhost como referencia de desarrollo; no afecta el runtime, pero debe parametrizarse/generarse en una mejora futura.
